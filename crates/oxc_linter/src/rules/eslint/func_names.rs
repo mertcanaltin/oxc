@@ -11,7 +11,7 @@ use oxc_diagnostics::OxcDiagnostic;
 use oxc_macros::declare_oxc_lint;
 use oxc_semantic::NodeId;
 use oxc_span::{Atom, GetSpan, Span};
-use oxc_syntax::identifier::is_identifier_name;
+use oxc_syntax::{identifier::is_identifier_name, keyword::is_reserved_keyword_or_global_object};
 
 use crate::{
     AstNode,
@@ -267,25 +267,27 @@ fn is_recursive_function(func: &Function, func_name: &str, ctx: &LintContext) ->
     if let Some(binding) = ctx.scoping().find_binding(func_scope_id, func_name) {
         return ctx.semantic().symbol_references(binding).any(|reference| {
             let parent = ctx.nodes().parent_node(reference.node_id());
-            if matches!(parent.kind(), AstKind::CallExpression(_)) {
-                ctx.nodes().ancestors(reference.node_id()).any(|ancestor| {
-                    if let AstKind::Function(f) = ancestor.kind() {
-                        f.scope_id.get() == Some(func_scope_id)
-                    } else {
-                        false
-                    }
-                })
-            } else {
-                false
+            // Check if this reference is the callee of a call expression (direct recursive call)
+            if let AstKind::CallExpression(call_expr) = parent.kind() {
+                // Only consider it recursive if the reference is the callee, not an argument
+                if call_expr.callee.span()
+                    == ctx.nodes().get_node(reference.node_id()).kind().span()
+                {
+                    return ctx.nodes().ancestors(reference.node_id()).any(|ancestor| {
+                        if let AstKind::Function(f) = ancestor.kind() {
+                            f.scope_id.get() == Some(func_scope_id)
+                        } else {
+                            false
+                        }
+                    });
+                }
             }
+            false
         });
     }
 
     false
 }
-
-const INVALID_IDENTIFIER_NAMES: [&str; 9] =
-    ["arguments", "async", "await", "constructor", "default", "eval", "null", "undefined", "yield"];
 
 fn diagnostic_invalid_function(
     func: &Function,
@@ -322,7 +324,12 @@ fn diagnostic_invalid_function(
 }
 
 fn is_valid_identifier_name(name: &str) -> bool {
-    !INVALID_IDENTIFIER_NAMES.contains(&name) && is_identifier_name(name)
+    // Reserved keywords and global objects (e.g., `undefined`, `NaN`) cannot be used as function names.
+    // Additionally, `arguments`, `eval`, and `constructor` have special semantics in strict mode
+    // or class contexts and should be avoided.
+    !is_reserved_keyword_or_global_object(name)
+        && !matches!(name, "arguments" | "eval" | "constructor" | "async")
+        && is_identifier_name(name)
 }
 
 /// Determines whether the current FunctionExpression node is a get, set, or
@@ -445,21 +452,38 @@ fn apply_rule_fix(
 }
 
 fn guess_function_name<'a>(ctx: &LintContext<'a>, node_id: NodeId) -> Option<Cow<'a, str>> {
-    ctx.nodes().ancestor_kinds(node_id).find_map(|parent_kind| match parent_kind {
-        AstKind::AssignmentExpression(assign) => {
-            assign.left.get_identifier_name().map(Cow::Borrowed)
+    for parent_kind in ctx.nodes().ancestor_kinds(node_id) {
+        match parent_kind {
+            AstKind::AssignmentExpression(assign) => {
+                // Stop here - we found the direct assignment context
+                return assign
+                    .left
+                    .get_identifier_name()
+                    .filter(|name| is_valid_identifier_name(name))
+                    .map(Cow::Borrowed);
+            }
+            AstKind::VariableDeclarator(decl) => {
+                // Stop here - we found the direct declarator context
+                return decl
+                    .id
+                    .get_identifier_name()
+                    .as_ref()
+                    .map(Atom::as_str)
+                    .filter(|name| is_valid_identifier_name(name))
+                    .map(Cow::Borrowed);
+            }
+            AstKind::ObjectProperty(prop) => {
+                // Stop here - we found the direct property context
+                return prop.key.static_name().filter(|name| is_valid_identifier_name(name));
+            }
+            AstKind::PropertyDefinition(prop_def) => {
+                // Stop here - we found the direct class property context
+                return prop_def.key.static_name().filter(|name| is_valid_identifier_name(name));
+            }
+            _ => {}
         }
-        AstKind::VariableDeclarator(decl) => {
-            decl.id.get_identifier_name().as_ref().map(Atom::as_str).map(Cow::Borrowed)
-        }
-        AstKind::ObjectProperty(prop) => {
-            prop.key.static_name().filter(|name| is_valid_identifier_name(name))
-        }
-        AstKind::PropertyDefinition(prop_def) => {
-            prop_def.key.static_name().filter(|name| is_valid_identifier_name(name))
-        }
-        _ => None,
-    })
+    }
+    None
 }
 
 #[test]
@@ -755,6 +779,23 @@ fn test() {
              Component.prototype.setState = function (update, callback) {
 	             return setState.call(this, update, callback);
             };",
+            always.clone(),
+        ),
+        // Should not suggest reserved words as function names
+        (
+            "exports['default'] = function() {}",
+            "exports['default'] = function() {}",
+            always.clone(),
+        ),
+        ("obj.default = function() {}", "obj.default = function() {}", always.clone()),
+        (
+            "const { default: foo = function() {} } = {}",
+            "const { default: foo = function() {} } = {}",
+            always.clone(),
+        ),
+        (
+            "const x = { delete: async function () {} }",
+            "const x = { delete: async function () {} }",
             always,
         ),
     ];

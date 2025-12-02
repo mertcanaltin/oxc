@@ -4,6 +4,32 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.100.0] - 2025-12-01
+
+### 💥 BREAKING CHANGES
+
+- 934d873 napi: [**BREAKING**] Drop `armv7-unknown-linux-musleabihf` support (#16105) (Boshen)
+
+## [0.98.0] - 2025-11-17
+
+### 💥 BREAKING CHANGES
+
+- ea51b0b napi: [**BREAKING**] Standardize function naming with sync suffixes (#15661) (Boshen)
+
+### 🚀 Features
+
+- f5ce55a napi: Export all options using wildcard exports (Boshen)
+
+## [0.97.0] - 2025-11-11
+
+### 🚀 Features
+
+- 1c31cb1 napi/minify: Expose `treeshake` options (#15109) (copilot-swe-agent)
+
+### 📚 Documentation
+
+- 3dc24b5 linter,minifier: Always refer as "ES Modules" instead of "ES6 Modules" (#15409) (sapphi-red)
+
 ## [0.96.0] - 2025-10-30
 
 ### 🚀 Features

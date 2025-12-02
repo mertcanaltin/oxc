@@ -1,20 +1,22 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{error::Error, fmt::Debug};
 
 use serde::Deserialize;
 
 use oxc_allocator::Allocator;
 
-pub type ExternalLinterLoadPluginCb = Arc<
-    dyn Fn(
-            String,
-            Option<String>,
-        ) -> Result<PluginLoadResult, Box<dyn std::error::Error + Send + Sync>>
+pub type ExternalLinterLoadPluginCb = Box<
+    dyn Fn(String, Option<String>) -> Result<PluginLoadResult, Box<dyn Error + Send + Sync>>
         + Send
         + Sync,
 >;
 
-pub type ExternalLinterLintFileCb =
-    Arc<dyn Fn(String, Vec<u32>, &Allocator) -> Result<Vec<LintFileResult>, String> + Sync + Send>;
+pub type ExternalLinterSetupConfigsCb = Box<dyn Fn(String) -> Result<(), String> + Send + Sync>;
+
+pub type ExternalLinterLintFileCb = Box<
+    dyn Fn(String, Vec<u32>, Vec<u32>, String, &Allocator) -> Result<Vec<LintFileResult>, String>
+        + Sync
+        + Send,
+>;
 
 #[derive(Clone, Debug, Deserialize)]
 pub enum PluginLoadResult {
@@ -44,18 +46,19 @@ pub struct JsFix {
     pub text: String,
 }
 
-#[derive(Clone)]
 pub struct ExternalLinter {
     pub(crate) load_plugin: ExternalLinterLoadPluginCb,
+    pub(crate) setup_configs: ExternalLinterSetupConfigsCb,
     pub(crate) lint_file: ExternalLinterLintFileCb,
 }
 
 impl ExternalLinter {
     pub fn new(
         load_plugin: ExternalLinterLoadPluginCb,
+        setup_configs: ExternalLinterSetupConfigsCb,
         lint_file: ExternalLinterLintFileCb,
     ) -> Self {
-        Self { load_plugin, lint_file }
+        Self { load_plugin, setup_configs, lint_file }
     }
 }
 

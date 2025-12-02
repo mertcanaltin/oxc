@@ -1,12 +1,12 @@
 {
   "$schema": "./npm/oxfmt/configuration_schema.json",
-  "printWidth": 120,
-  "singleQuote": true,
   "ignorePatterns": [
     "**/dist/**",
     "**/tests/**",
     "**/generated/**",
+    // Ignore `fixtures` directories except for `apps/oxlint/test/fixtures`
     "**/fixtures/**",
+    "!apps/oxlint/test/fixtures/**",
     "tasks/coverage/node-compat-table",
     "tasks/coverage/misc",
     "tasks/coverage/src/runtime/babelHelpers.js",

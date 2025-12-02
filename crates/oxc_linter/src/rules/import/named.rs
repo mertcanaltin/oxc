@@ -10,7 +10,7 @@ use crate::{
 
 fn named_diagnostic(imported_name: &str, module_name: &str, span: Span) -> OxcDiagnostic {
     OxcDiagnostic::warn(format!("named import {imported_name:?} not found"))
-        .with_help(format!("does {module_name:?} have the export {imported_name:?}?"))
+        .with_help(format!("Does {module_name:?} have the export {imported_name:?}?"))
         .with_label(span)
 }
 
@@ -57,7 +57,7 @@ declare_oxc_lint!(
     /// // ./baz.js
     /// import { notFoo } from './foo'
     ///
-    /// // ES7 proposal
+    /// // re-export
     /// export { notFoo as defNotBar } from './foo'
     ///
     /// // will follow 'jsnext:main', if available
@@ -69,7 +69,7 @@ declare_oxc_lint!(
     /// // ./bar.js
     /// import { foo } from './foo'
     ///
-    /// // ES7 proposal
+    /// // re-export
     /// export { foo as bar } from './foo'
     ///
     /// // node_modules without jsnext:main are not analyzed by default

@@ -134,6 +134,10 @@ fn generate_deserializers(
 
     #[rustfmt::skip]
     let mut code = format!("
+        /* IF LINTER */
+        import {{ tokens, initTokens }} from '../plugins/tokens.js';
+        /* END_IF */
+
         let uint8, uint32, float64, sourceText, sourceIsAscii, sourceByteLen;
 
         let astId = 0;
@@ -376,7 +380,9 @@ fn generate_struct(
 
                 if deser_type == DeserializerType::Both {
                     write_it!(fields_str, "{field_name}: null,");
-                    write_it!(assignments_str, "node.{field_name} = {value};");
+                    if value != "null" {
+                        write_it!(assignments_str, "node.{field_name} = {value};");
+                    }
                 } else {
                     let condition = match deser_type {
                         DeserializerType::JsOnly => "!IS_TS",
@@ -384,7 +390,9 @@ fn generate_struct(
                         DeserializerType::Both => unreachable!(),
                     };
                     write_it!(fields_str, "...({condition} && {{ {field_name}: null }}),");
-                    write_it!(assignments_str, "if ({condition}) node.{field_name} = {value};");
+                    if value != "null" {
+                        write_it!(assignments_str, "if ({condition}) node.{field_name} = {value};");
+                    }
                 }
             }
         }

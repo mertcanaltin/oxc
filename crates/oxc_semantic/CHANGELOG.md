@@ -4,6 +4,47 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.101.0] - 2025-12-02
+
+### 🚀 Features
+
+- 165f59d parser: Report empty expression in JSX attribute error (#16378) (leaysgur)
+
+## [0.100.0] - 2025-12-01
+
+### 💥 BREAKING CHANGES
+
+- 74cf572 ast: [**BREAKING**] Make `source` field of `TSImportType` a `StringLiteral` (#16114) (copilot-swe-agent)
+
+## [0.99.0] - 2025-11-24
+
+### 💥 BREAKING CHANGES
+
+- cbb27fd ast: [**BREAKING**] Add `TSGlobalDeclaration` type (#15712) (overlookmotel)
+
+### 🐛 Bug Fixes
+
+- 2191ae9 semantic: Allow reserved keywords in typescript ambient contexts (#15495) (sapphi-red)
+
+## [0.98.0] - 2025-11-17
+
+### 🐛 Bug Fixes
+
+- c023ba6 semantic: Do not duplicate statements in temp `Vec` when binding `TSModuleDeclaration`s (#15724) (overlookmotel)
+- 9f54a36 semantic: Error on `\00` in strict mode (#15743) (sapphi-red)
+
+## [0.97.0] - 2025-11-11
+
+### 🚀 Features
+
+- 5616ad5 parser,semantic: Add TS1274 error (#15441) (sapphi-red)
+- 8d69661 allocator: Add `Address::from_ref` method (#15318) (overlookmotel)
+- 682dca2 parser: Add more helps to parser errors (#15186) (sapphi-red)
+
+### 🐛 Bug Fixes
+
+- 4a54107 semantic: Allow `arguments` in the class field keys (#15227) (sapphi-red)
+
 ## [0.96.0] - 2025-10-30
 
 ### 🚀 Features

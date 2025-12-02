@@ -6,16 +6,13 @@ use std::{
 
 use rustc_hash::FxHashMap;
 
-use oxc_diagnostics::{DiagnosticSender, DiagnosticService};
+use oxc_diagnostics::{DiagnosticSender, DiagnosticService, OxcDiagnostic};
 use oxc_span::Span;
 
 use crate::{
-    AllowWarnDeny, DisableDirectives, FixKind, LintService, LintServiceOptions, Linter,
-    TsGoLintState,
+    AllowWarnDeny, DisableDirectives, FixKind, LintService, LintServiceOptions, Linter, Message,
+    OsFileSystem, PossibleFixes, TsGoLintState,
 };
-
-#[cfg(feature = "language_server")]
-use crate::Message;
 
 /// Unified runner that orchestrates both regular (oxc) and type-aware (tsgolint) linting
 /// with centralized disable directives handling.
@@ -129,6 +126,7 @@ impl Default for DirectivesStore {
 pub struct LintRunnerBuilder {
     regular_linter: Linter,
     type_aware_enabled: bool,
+    type_check: bool,
     lint_service_options: LintServiceOptions,
     silent: bool,
     fix_kind: FixKind,
@@ -139,6 +137,7 @@ impl LintRunnerBuilder {
         Self {
             regular_linter: linter,
             type_aware_enabled: false,
+            type_check: false,
             lint_service_options,
             silent: false,
             fix_kind: FixKind::None,
@@ -148,6 +147,12 @@ impl LintRunnerBuilder {
     #[must_use]
     pub fn with_type_aware(mut self, enabled: bool) -> Self {
         self.type_aware_enabled = enabled;
+        self
+    }
+
+    #[must_use]
+    pub fn with_type_check(mut self, enabled: bool) -> Self {
+        self.type_check = enabled;
         self
     }
 
@@ -174,7 +179,7 @@ impl LintRunnerBuilder {
                 self.regular_linter.config.clone(),
                 self.fix_kind,
             ) {
-                Ok(state) => Some(state.with_silent(self.silent)),
+                Ok(state) => Some(state.with_silent(self.silent).with_type_check(self.type_check)),
                 Err(e) => return Err(e),
             }
         } else {
@@ -207,17 +212,14 @@ impl LintRunner {
         mut self,
         files: &[Arc<OsStr>],
         tx_error: DiagnosticSender,
-        file_system: Option<Box<dyn crate::RuntimeFileSystem + Sync + Send>>,
+        file_system: Option<&(dyn crate::RuntimeFileSystem + Sync + Send)>,
     ) -> Result<Self, String> {
         // Phase 1: Regular linting (collects disable directives)
-        self.lint_service.with_paths(files.to_owned());
+        let default_fs = OsFileSystem;
+        let fs: &(dyn crate::RuntimeFileSystem + Sync + Send) =
+            if let Some(fs) = file_system { fs } else { &default_fs };
 
-        // Set custom file system if provided
-        if let Some(fs) = file_system {
-            self.lint_service.with_file_system(fs);
-        }
-
-        self.lint_service.run(&tx_error);
+        self.lint_service.run(fs, files.to_owned(), &tx_error);
 
         if let Some(type_aware_linter) = self.type_aware_linter.take() {
             type_aware_linter.lint(files, self.directives_store.map(), tx_error)?;
@@ -231,22 +233,29 @@ impl LintRunner {
     /// Run both regular and type-aware linting on files
     /// # Errors
     /// Returns an error if type-aware linting fails.
-    #[cfg(feature = "language_server")]
     pub fn run_source(
-        &mut self,
+        &self,
         file: &Arc<OsStr>,
         source_text: String,
-        file_system: Box<dyn crate::RuntimeFileSystem + Sync + Send>,
+        file_system: &(dyn crate::RuntimeFileSystem + Sync + Send),
     ) -> Vec<Message> {
-        self.lint_service.with_paths(vec![Arc::clone(file)]);
-        self.lint_service.with_file_system(file_system);
+        let mut messages = self.lint_service.run_source(file_system, vec![Arc::clone(file)]);
 
-        let mut messages = self.lint_service.run_source();
-
-        if let Some(type_aware_linter) = &self.type_aware_linter
-            && let Ok(tso_messages) = type_aware_linter.lint_source(file, source_text)
-        {
-            messages.extend(tso_messages);
+        if let Some(type_aware_linter) = &self.type_aware_linter {
+            let tsgo_messages =
+                match type_aware_linter.lint_source(file, source_text, self.directives_store.map())
+                {
+                    Ok(msgs) => msgs,
+                    Err(err) => {
+                        vec![Message::new(
+                            OxcDiagnostic::warn(format!(
+                                "Failed to run type-aware linting: `{err}`",
+                            )),
+                            PossibleFixes::None,
+                        )]
+                    }
+                };
+            messages.extend(tsgo_messages);
         }
 
         messages

@@ -3,6 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use futures::future::join_all;
 use log::{debug, info, warn};
 use rustc_hash::FxBuildHasher;
+use serde_json::Value;
 use tokio::sync::{OnceCell, RwLock, SetError};
 use tower_lsp_server::{
     Client, LanguageServer,
@@ -12,19 +13,15 @@ use tower_lsp_server::{
         DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
         DidChangeWorkspaceFoldersParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
         DidSaveTextDocumentParams, DocumentFormattingParams, ExecuteCommandParams,
-        InitializeParams, InitializeResult, InitializedParams, Registration, ServerInfo, TextEdit,
-        Unregistration, Uri, WorkspaceEdit,
+        InitializeParams, InitializeResult, InitializedParams, ServerInfo, TextEdit, Uri,
     },
 };
 
 use crate::{
-    ConcurrentHashMap,
-    capabilities::Capabilities,
-    code_actions::CODE_ACTION_KIND_SOURCE_FIX_ALL_OXC,
-    commands::{FIX_ALL_COMMAND_ID, FixAllCommandArgs},
+    ConcurrentHashMap, ToolBuilder,
+    capabilities::{Capabilities, server_capabilities},
     file_system::LSPFileSystem,
-    linter::options::Run,
-    options::{Options, WorkspaceOption},
+    options::WorkspaceOption,
     worker::WorkspaceWorker,
 };
 
@@ -43,9 +40,18 @@ use crate::{
 /// - Editor sends `textDocument/didOpen`, `textDocument/didChange`, `textDocument/didSave`, and `textDocument/didClose` notifications.
 /// - Editor sends `shutdown` request when the user closes the editor.
 /// - Editor sends `exit` notification and the server exits.
+///
+/// Because `initialized` is a notification, the client will not wait for a response from the server.
+/// Therefore, the server must be able to handle requests and notifications that may arrive directly after `initialized` notification,
+/// such as `textDocument/didOpen`.
 pub struct Backend {
     // The LSP client to communicate with the editor or IDE.
     client: Client,
+    // Information about the server, such as name and version.
+    // The client can use this information for display or logging purposes.
+    server_info: ServerInfo,
+    // The available tool builders to create tools like linters and formatters.
+    tool_builders: Vec<Box<dyn ToolBuilder>>,
     // Each Workspace has it own worker with Linter (and in the future the formatter).
     // We must respect each program inside with its own root folder
     // and can not use shared programmes across multiple workspaces.
@@ -71,9 +77,8 @@ impl LanguageServer for Backend {
     /// See: <https://microsoft.github.io/language-server-protocol/specifications/specification-current/#initialize>
     #[expect(deprecated)] // `params.root_uri` is deprecated, we are only falling back to it if no workspace folder is provided
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
-        let server_version = env!("CARGO_PKG_VERSION");
         // initialization_options can be anything, so we are requesting `workspace/configuration` when no initialize options are provided
-        let options = params.initialization_options.and_then(|mut value| {
+        let options = params.initialization_options.and_then(|value| {
             // the client supports the new settings object
             if let Ok(new_settings) = serde_json::from_value::<Vec<WorkspaceOption>>(value.clone())
             {
@@ -81,15 +86,14 @@ impl LanguageServer for Backend {
                 return Some(new_settings);
             }
 
-            let deprecated_settings =
-                serde_json::from_value::<Options>(value.get_mut("settings")?.take()).ok();
+            let deprecated_settings = value.get("settings");
 
             // the client has deprecated settings and has a deprecated root uri.
             // handle all things like the old way
             if deprecated_settings.is_some() && params.root_uri.is_some() {
                 return Some(vec![WorkspaceOption {
                     workspace_uri: params.root_uri.clone().unwrap(),
-                    options: deprecated_settings.unwrap(),
+                    options: deprecated_settings.unwrap().clone(),
                 }]);
             }
 
@@ -98,7 +102,11 @@ impl LanguageServer for Backend {
         });
 
         info!("initialize: {options:?}");
-        info!("language server version: {server_version}");
+        info!(
+            "{} version: {}",
+            self.server_info.name,
+            self.server_info.version.as_deref().unwrap_or("unknown")
+        );
 
         let capabilities = Capabilities::from(params.capabilities);
 
@@ -132,13 +140,18 @@ impl LanguageServer for Backend {
                     .map(|workspace_options| workspace_options.options.clone())
                     .unwrap_or_default();
 
-                worker.start_worker(option).await;
+                worker.start_worker(option.clone(), &self.tool_builders).await;
             }
         }
 
         *self.workspace_workers.write().await = workers;
 
-        self.capabilities.set(capabilities.clone()).map_err(|err| {
+        let mut server_capabilities = server_capabilities();
+        for tool_builder in &self.tool_builders {
+            tool_builder.server_capabilities(&mut server_capabilities);
+        }
+
+        self.capabilities.set(capabilities).map_err(|err| {
             let message = match err {
                 SetError::AlreadyInitializedError(_) => {
                     "capabilities are already initialized".into()
@@ -150,12 +163,9 @@ impl LanguageServer for Backend {
         })?;
 
         Ok(InitializeResult {
-            server_info: Some(ServerInfo {
-                name: "oxc".into(),
-                version: Some(server_version.to_string()),
-            }),
+            server_info: Some(self.server_info.clone()),
             offset_encoding: None,
-            capabilities: capabilities.into(),
+            capabilities: server_capabilities,
         })
     }
 
@@ -186,15 +196,33 @@ impl LanguageServer for Backend {
                 self.request_workspace_configuration(needed_configurations.keys().collect()).await
             } else {
                 // every worker should be initialized already in `initialize` request
-                vec![Some(Options::default()); needed_configurations.len()]
+                vec![serde_json::Value::Null; needed_configurations.len()]
             };
-            let default_options = Options::default();
+
+            let known_files = self.file_system.read().await.keys();
+            let mut new_diagnostics = Vec::new();
 
             for (index, worker) in needed_configurations.values().enumerate() {
-                let configuration =
-                    configurations.get(index).unwrap_or(&None).as_ref().unwrap_or(&default_options);
+                // get the configuration from the response and start the worker
+                let configuration = configurations.get(index).unwrap_or(&serde_json::Value::Null);
+                worker.start_worker(configuration.clone(), &self.tool_builders).await;
 
-                worker.start_worker(configuration).await;
+                // run diagnostics for all known files in the workspace of the worker.
+                // This is necessary because the worker was not started before.
+                for uri in &known_files {
+                    if !worker.is_responsible_for_uri(uri) {
+                        continue;
+                    }
+                    let content = self.file_system.read().await.get(uri);
+                    if let Some(diagnostics) = worker.run_diagnostic(uri, content.as_deref()).await
+                    {
+                        new_diagnostics.push((uri.to_string(), diagnostics));
+                    }
+                }
+            }
+
+            if !new_diagnostics.is_empty() {
+                self.publish_all_diagnostics(&new_diagnostics).await;
             }
         }
 
@@ -204,25 +232,6 @@ impl LanguageServer for Backend {
         if capabilities.dynamic_watchers {
             for worker in workers {
                 registrations.extend(worker.init_watchers().await);
-            }
-        }
-
-        if capabilities.dynamic_formatting {
-            // check if one workspace has formatting enabled
-            let mut started_worker = false;
-            for worker in workers {
-                if worker.has_active_formatter().await {
-                    started_worker = true;
-                    break;
-                }
-            }
-
-            if started_worker {
-                registrations.push(Registration {
-                    id: "dynamic-formatting".to_string(),
-                    method: "textDocument/formatting".to_string(),
-                    register_options: None,
-                });
             }
         }
 
@@ -238,10 +247,25 @@ impl LanguageServer for Backend {
     ///
     /// See: <https://microsoft.github.io/language-server-protocol/specifications/specification-current/#shutdown>
     async fn shutdown(&self) -> Result<()> {
-        self.clear_all_diagnostics().await;
-        if self.capabilities.get().is_some_and(|option| option.dynamic_formatting) {
-            self.file_system.write().await.clear();
+        let mut clearing_diagnostics = Vec::new();
+        let mut removed_registrations = Vec::new();
+
+        for worker in &*self.workspace_workers.read().await {
+            let (uris, unregistrations) = worker.shutdown().await;
+            clearing_diagnostics.extend(uris);
+            removed_registrations.extend(unregistrations);
         }
+        if !clearing_diagnostics.is_empty() {
+            self.clear_diagnostics(clearing_diagnostics).await;
+        }
+        if self.capabilities.get().unwrap().dynamic_watchers
+            && !removed_registrations.is_empty()
+            && let Err(err) = self.client.unregister_capability(removed_registrations).await
+        {
+            warn!("sending unregisterCapability.didChangeWatchedFiles failed: {err}");
+        }
+        self.file_system.write().await.clear();
+
         Ok(())
     }
 
@@ -257,24 +281,26 @@ impl LanguageServer for Backend {
         let mut removing_registrations = vec![];
         let mut adding_registrations = vec![];
 
-        // new valid configuration is passed
-        let options = serde_json::from_value::<Vec<WorkspaceOption>>(params.settings.clone())
-            .ok()
-            .or_else(|| {
-                // fallback to old configuration
-                let options = serde_json::from_value::<Options>(params.settings).ok()?;
+        // when null, request configuration from client; otherwise, parse as per-workspace options or use as global configuration
+        let options = if params.settings == Value::Null {
+            None
+        } else {
+            serde_json::from_value::<Vec<WorkspaceOption>>(params.settings.clone()).ok().or_else(
+                || {
+                    // fallback to old configuration
+                    // for all workers (default only one)
+                    let options = workers
+                        .iter()
+                        .map(|worker| WorkspaceOption {
+                            workspace_uri: worker.get_root_uri().clone(),
+                            options: params.settings.clone(),
+                        })
+                        .collect();
 
-                // for all workers (default only one)
-                let options = workers
-                    .iter()
-                    .map(|worker| WorkspaceOption {
-                        workspace_uri: worker.get_root_uri().clone(),
-                        options: options.clone(),
-                    })
-                    .collect();
-
-                Some(options)
-            });
+                    Some(options)
+                },
+            )
+        };
 
         // the client passed valid options.
         let resolved_options = if let Some(options) = options {
@@ -295,12 +321,9 @@ impl LanguageServer for Backend {
             configs
                 .iter()
                 .enumerate()
-                // filter out results where the client did not return a configuration
-                .filter_map(|(index, config)| {
-                    config.as_ref().map(|options| WorkspaceOption {
-                        workspace_uri: workers[index].get_root_uri().clone(),
-                        options: options.clone(),
-                    })
+                .map(|(index, config)| WorkspaceOption {
+                    workspace_uri: workers[index].get_root_uri().clone(),
+                    options: config.clone(),
                 })
                 .collect::<Vec<_>>()
         } else {
@@ -310,8 +333,6 @@ impl LanguageServer for Backend {
             return;
         };
 
-        let mut global_formatting_added = false;
-
         for option in resolved_options {
             let Some(worker) =
                 workers.iter().find(|worker| worker.is_responsible_for_uri(&option.workspace_uri))
@@ -319,13 +340,8 @@ impl LanguageServer for Backend {
                 continue;
             };
 
-            let (diagnostics, registrations, unregistrations, formatter_activated) =
-                worker.did_change_configuration(&option.options).await;
-
-            if formatter_activated && self.capabilities.get().is_some_and(|c| c.dynamic_formatting)
-            {
-                global_formatting_added = true;
-            }
+            let (diagnostics, registrations, unregistrations) =
+                worker.did_change_configuration(option.options).await;
 
             if let Some(diagnostics) = diagnostics {
                 new_diagnostics.extend(diagnostics);
@@ -337,16 +353,6 @@ impl LanguageServer for Backend {
 
         if !new_diagnostics.is_empty() {
             self.publish_all_diagnostics(&new_diagnostics).await;
-        }
-
-        // override the existing formatting registration
-        // do not remove the registration, because other workspaces might still need it
-        if global_formatting_added {
-            adding_registrations.push(Registration {
-                id: "dynamic-formatting".to_string(),
-                method: "textDocument/formatting".to_string(),
-                register_options: None,
-            });
         }
 
         if !removing_registrations.is_empty()
@@ -370,7 +376,9 @@ impl LanguageServer for Backend {
         // ToDo: what if an empty changes flag is passed?
         debug!("watched file did change");
 
-        let mut all_diagnostics = Vec::new();
+        let mut new_diagnostics = Vec::new();
+        let mut removing_registrations = vec![];
+        let mut adding_registrations = vec![];
 
         for file_event in &params.changes {
             // We do not expect multiple changes from the same workspace folder.
@@ -381,15 +389,32 @@ impl LanguageServer for Backend {
             else {
                 continue;
             };
-            let Some(diagnostics) = worker.did_change_watched_files(file_event).await else {
-                continue;
-            };
+            let (diagnostics, registrations, unregistrations) =
+                worker.did_change_watched_files(file_event).await;
 
-            all_diagnostics.extend(diagnostics);
+            if let Some(diagnostics) = diagnostics {
+                new_diagnostics.extend(diagnostics);
+            }
+            removing_registrations.extend(unregistrations);
+            adding_registrations.extend(registrations);
         }
 
-        if !all_diagnostics.is_empty() {
-            self.publish_all_diagnostics(&all_diagnostics).await;
+        if !new_diagnostics.is_empty() {
+            self.publish_all_diagnostics(&new_diagnostics).await;
+        }
+
+        if self.capabilities.get().is_some_and(|capabilities| capabilities.dynamic_watchers) {
+            if !removing_registrations.is_empty()
+                && let Err(err) = self.client.unregister_capability(removing_registrations).await
+            {
+                warn!("sending unregisterCapability.didChangeWatchedFiles failed: {err}");
+            }
+
+            if !adding_registrations.is_empty()
+                && let Err(err) = self.client.register_capability(adding_registrations).await
+            {
+                warn!("sending registerCapability.didChangeWatchedFiles failed: {err}");
+            }
         }
     }
 
@@ -413,17 +438,13 @@ impl LanguageServer for Backend {
             else {
                 continue;
             };
-            cleared_diagnostics.extend(worker.get_clear_diagnostics().await);
-            removed_registrations.push(Unregistration {
-                id: format!("watcher-{}", worker.get_root_uri().as_str()),
-                method: "workspace/didChangeWatchedFiles".to_string(),
-            });
+            let (uris, unregistrations) = worker.shutdown().await;
+            cleared_diagnostics.extend(uris);
+            removed_registrations.extend(unregistrations);
             workers.remove(index);
         }
 
-        self.publish_all_diagnostics(&cleared_diagnostics).await;
-
-        let default_options = Options::default();
+        self.clear_diagnostics(cleared_diagnostics).await;
 
         // client support `workspace/configuration` request
         if self.capabilities.get().is_some_and(|capabilities| capabilities.workspace_configuration)
@@ -437,10 +458,8 @@ impl LanguageServer for Backend {
             for (index, folder) in params.event.added.iter().enumerate() {
                 let worker = WorkspaceWorker::new(folder.uri.clone());
                 // get the configuration from the response and init the linter
-                let options = configurations.get(index).unwrap_or(&None);
-                let options = options.as_ref().unwrap_or(&default_options);
-
-                worker.start_worker(options).await;
+                let options = configurations.get(index).unwrap_or(&serde_json::Value::Null);
+                worker.start_worker(options.clone(), &self.tool_builders).await;
 
                 added_registrations.extend(worker.init_watchers().await);
                 workers.push(worker);
@@ -450,7 +469,8 @@ impl LanguageServer for Backend {
             for folder in params.event.added {
                 let worker = WorkspaceWorker::new(folder.uri);
                 // use default options
-                worker.start_worker(&default_options).await;
+                worker.start_worker(serde_json::Value::Null, &self.tool_builders).await;
+                added_registrations.extend(worker.init_watchers().await);
                 workers.push(worker);
             }
         }
@@ -483,23 +503,11 @@ impl LanguageServer for Backend {
             return;
         };
 
-        if self.capabilities.get().is_some_and(|option| option.dynamic_formatting) {
-            // saving the file means we can read again from the file system
-            self.file_system.write().await.remove(uri);
-        }
+        // saving the file means we can read again from the file system
+        self.file_system.write().await.remove(uri);
 
-        if !worker.should_lint_on_run_type(Run::OnSave).await {
-            return;
-        }
-
-        if let Some(diagnostics) = worker.lint_file(uri, None).await {
-            self.client
-                .publish_diagnostics(
-                    uri.clone(),
-                    diagnostics.clone().into_iter().map(|d| d.diagnostic).collect(),
-                    None,
-                )
-                .await;
+        if let Some(diagnostics) = worker.run_diagnostic_on_save(uri, None).await {
+            self.client.publish_diagnostics(uri.clone(), diagnostics, None).await;
         }
     }
     /// It will update the in-memory file content if the client supports dynamic formatting.
@@ -514,23 +522,13 @@ impl LanguageServer for Backend {
         };
         let content = params.content_changes.first().map(|c| c.text.clone());
 
-        if self.capabilities.get().is_some_and(|option| option.dynamic_formatting)
-            && let Some(content) = &content
-        {
+        if let Some(content) = &content {
             self.file_system.write().await.set(uri, content.clone());
         }
 
-        if !worker.should_lint_on_run_type(Run::OnType).await {
-            return;
-        }
-
-        if let Some(diagnostics) = worker.lint_file(uri, content).await {
+        if let Some(diagnostics) = worker.run_diagnostic_on_change(uri, content.as_deref()).await {
             self.client
-                .publish_diagnostics(
-                    uri.clone(),
-                    diagnostics.clone().into_iter().map(|d| d.diagnostic).collect(),
-                    Some(params.text_document.version),
-                )
+                .publish_diagnostics(uri.clone(), diagnostics, Some(params.text_document.version))
                 .await;
         }
     }
@@ -548,17 +546,11 @@ impl LanguageServer for Backend {
 
         let content = params.text_document.text;
 
-        if self.capabilities.get().is_some_and(|option| option.dynamic_formatting) {
-            self.file_system.write().await.set(uri, content.clone());
-        }
+        self.file_system.write().await.set(uri, content.clone());
 
-        if let Some(diagnostics) = worker.lint_file(uri, Some(content)).await {
+        if let Some(diagnostics) = worker.run_diagnostic(uri, Some(&content)).await {
             self.client
-                .publish_diagnostics(
-                    uri.clone(),
-                    diagnostics.clone().into_iter().map(|d| d.diagnostic).collect(),
-                    Some(params.text_document.version),
-                )
+                .publish_diagnostics(uri.clone(), diagnostics, Some(params.text_document.version))
                 .await;
         }
     }
@@ -573,9 +565,8 @@ impl LanguageServer for Backend {
         let Some(worker) = workers.iter().find(|worker| worker.is_responsible_for_uri(uri)) else {
             return;
         };
-        if self.capabilities.get().is_some_and(|option| option.dynamic_formatting) {
-            self.file_system.write().await.remove(uri);
-        }
+
+        self.file_system.write().await.remove(uri);
         worker.remove_diagnostics(&params.text_document.uri).await;
     }
 
@@ -590,13 +581,8 @@ impl LanguageServer for Backend {
             return Ok(None);
         };
 
-        let is_source_fix_all_oxc = params
-            .context
-            .only
-            .is_some_and(|only| only.contains(&CODE_ACTION_KIND_SOURCE_FIX_ALL_OXC));
-
         let code_actions =
-            worker.get_code_actions_or_commands(uri, &params.range, is_source_fix_all_oxc).await;
+            worker.get_code_actions_or_commands(uri, &params.range, params.context.only).await;
 
         if code_actions.is_empty() {
             return Ok(None);
@@ -613,36 +599,26 @@ impl LanguageServer for Backend {
         &self,
         params: ExecuteCommandParams,
     ) -> Result<Option<serde_json::Value>> {
-        if params.command == FIX_ALL_COMMAND_ID {
-            if !self.capabilities.get().unwrap().workspace_apply_edit {
-                return Err(Error::invalid_params("client does not support workspace apply edit"));
+        for worker in self.workspace_workers.read().await.iter() {
+            match worker.execute_command(&params.command, params.arguments.clone()).await {
+                Ok(changes) => {
+                    let Some(edit) = changes else {
+                        continue;
+                    };
+
+                    if !self.capabilities.get().unwrap().workspace_apply_edit {
+                        return Err(Error::invalid_params(
+                            "client does not support workspace apply edit",
+                        ));
+                    }
+
+                    self.client.apply_edit(edit).await?;
+                }
+                Err(err) => return Err(Error::new(err)),
             }
-
-            let args =
-                FixAllCommandArgs::try_from(params.arguments).map_err(Error::invalid_params)?;
-
-            let uri = &Uri::from_str(&args.uri).unwrap();
-            let workers = self.workspace_workers.read().await;
-            let Some(worker) = workers.iter().find(|worker| worker.is_responsible_for_uri(uri))
-            else {
-                return Ok(None);
-            };
-
-            let text_edits = worker.get_diagnostic_text_edits(uri).await;
-
-            self.client
-                .apply_edit(WorkspaceEdit {
-                    #[expect(clippy::disallowed_types)]
-                    changes: Some(std::collections::HashMap::from([(uri.clone(), text_edits)])),
-                    document_changes: None,
-                    change_annotations: None,
-                })
-                .await?;
-
-            return Ok(None);
         }
 
-        Err(Error::invalid_request())
+        Ok(None)
     }
 
     /// It will return text edits to format the document if formatting is enabled for the workspace.
@@ -654,7 +630,7 @@ impl LanguageServer for Backend {
         let Some(worker) = workers.iter().find(|worker| worker.is_responsible_for_uri(uri)) else {
             return Ok(None);
         };
-        Ok(worker.format_file(uri, self.file_system.read().await.get(uri)).await)
+        Ok(worker.format_file(uri, self.file_system.read().await.get(uri).as_deref()).await)
     }
 }
 
@@ -663,9 +639,11 @@ impl Backend {
     /// The Backend will manage multiple [WorkspaceWorker]s and their configurations.
     /// It also holds the capabilities of the language server and an in-memory file system.
     /// The client is used to communicate with the LSP client.
-    pub fn new(client: Client) -> Self {
+    pub fn new(client: Client, server_info: ServerInfo, tools: Vec<Box<dyn ToolBuilder>>) -> Self {
         Self {
             client,
+            server_info,
+            tool_builders: tools,
             workspace_workers: Arc::new(RwLock::new(vec![])),
             capabilities: OnceCell::new(),
             file_system: Arc::new(RwLock::new(LSPFileSystem::default())),
@@ -675,7 +653,7 @@ impl Backend {
     /// Request the workspace configuration from the client
     /// and return the options for each workspace folder.
     /// The check if the client support workspace configuration, should be done before.
-    async fn request_workspace_configuration(&self, uris: Vec<&Uri>) -> Vec<Option<Options>> {
+    async fn request_workspace_configuration(&self, uris: Vec<&Uri>) -> Vec<serde_json::Value> {
         let length = uris.len();
         let config_items = uris
             .into_iter()
@@ -688,30 +666,21 @@ impl Backend {
         let Ok(configs) = self.client.configuration(config_items).await else {
             debug!("failed to get configuration");
             // return none for each workspace folder
-            return vec![None; length];
+            return vec![serde_json::Value::Null; length];
         };
 
-        let mut options = vec![];
-        for config in configs {
-            options.push(serde_json::from_value::<Options>(config).ok());
-        }
-
         debug_assert!(
-            options.len() == length,
+            configs.len() == length,
             "the number of configuration items should be the same as the number of workspace folders"
         );
 
-        options
+        configs
     }
 
-    /// Clears all diagnostics for workspace folders
-    async fn clear_all_diagnostics(&self) {
-        let mut cleared_diagnostics = vec![];
-        let workers = &*self.workspace_workers.read().await;
-        for worker in workers {
-            cleared_diagnostics.extend(worker.get_clear_diagnostics().await);
-        }
-        self.publish_all_diagnostics(&cleared_diagnostics).await;
+    async fn clear_diagnostics(&self, uris: Vec<Uri>) {
+        let diagnostics: Vec<(String, Vec<Diagnostic>)> =
+            uris.into_iter().map(|uri| (uri.to_string(), vec![])).collect();
+        self.publish_all_diagnostics(&diagnostics).await;
     }
 
     /// Publish diagnostics for all files.

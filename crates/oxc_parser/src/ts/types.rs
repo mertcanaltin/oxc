@@ -190,6 +190,7 @@ impl<'a> ParserImpl<'a> {
         self.verify_modifiers(
             &modifiers,
             ModifierFlags::IN | ModifierFlags::OUT | ModifierFlags::CONST,
+            false, // `in` and `out` are only allowed on a type parameter of a class, interface or type alias
             diagnostics::cannot_appear_on_a_type_parameter,
         );
 
@@ -1023,7 +1024,21 @@ impl<'a> ParserImpl<'a> {
         let span = self.start_span();
         self.expect(Kind::Import);
         self.expect(Kind::LParen);
-        let argument = self.parse_ts_type();
+
+        let source = if self.at(Kind::Str) {
+            self.parse_literal_string()
+        } else {
+            // `StringLiteral` is the only valid type for `TSImportType`'s `source` field. So this is an error.
+            // Fallback to parsing a `TSType`, to obtain a good span for the diagnostic.
+            // It's possible for `parse_ts_type` to produce an invalid span. Fallback to the current token span if so.
+            let mut span = self.parse_ts_type().span();
+            if span.end <= span.start {
+                span = self.cur_token().span();
+            }
+            self.error(diagnostics::ts_string_literal_expected(span));
+            self.ast.string_literal(span, "", None)
+        };
+
         let options =
             if self.eat(Kind::Comma) { Some(self.parse_object_expression()) } else { None };
         self.expect(Kind::RParen);
@@ -1032,7 +1047,7 @@ impl<'a> ParserImpl<'a> {
         let type_arguments = self.parse_type_arguments_of_type_reference();
         self.ast.alloc_ts_import_type(
             self.end_span(span),
-            argument,
+            source,
             options,
             qualifier,
             type_arguments,
@@ -1194,15 +1209,13 @@ impl<'a> ParserImpl<'a> {
 
         let kind = self.cur_kind();
         if kind == Kind::LParen || kind == Kind::LAngle {
-            for modifier in modifiers.iter() {
-                if modifier.kind == ModifierKind::Readonly {
-                    self.error(
-                        diagnostics::modifier_only_on_property_declaration_or_index_signature(
-                            modifier,
-                        ),
-                    );
-                }
-            }
+            self.verify_modifiers(
+                modifiers,
+                !ModifierFlags::READONLY,
+                false,
+                diagnostics::modifier_only_on_property_declaration_or_index_signature,
+            );
+
             let type_parameters = self.parse_ts_type_parameters();
             let (this_param, params) = self
                 .parse_formal_parameters(FunctionKind::Declaration, FormalParameterKind::Signature);

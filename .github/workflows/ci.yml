@@ -20,14 +20,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
       - run: cargo ck
-      - run: cargo test --workspace --all-features --exclude website
-      - run: cargo test -p website # Run separately to avoid feature unification problems with `oxlint`
+      - run: cargo test --workspace --all-features
       - run: git diff --exit-code # Must commit everything
 
   test-ubuntu-aarch64:
@@ -36,14 +35,13 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm-aarch64
       - run: cargo ck
-      - run: cargo test --workspace --all-features --exclude website
-      - run: cargo test -p website # Run separately to avoid feature unification problems with `oxlint`
+      - run: cargo test --workspace --all-features
       - run: git diff --exit-code # Must commit everything
 
   test-mac: # Separate job to save a job on PRs
@@ -52,14 +50,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
       - run: cargo ck
-      - run: cargo test --workspace --all-features --exclude website
-      - run: cargo test -p website # Run separately to avoid feature unification problems with `oxlint`
+      - run: cargo test --workspace --all-features
       - run: git diff --exit-code # Must commit everything
 
   test-windows:
@@ -71,7 +68,7 @@ jobs:
       # Unsung heroes of the internet, who led me here to speed up Windows' slowness:
       # https://github.com/actions/cache/issues/752#issuecomment-1847036770
       # https://github.com/astral-sh/uv/blob/502e04200d52de30d3159894833b3db4f0d6644d/.github/workflows/ci.yml#L158
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
       - uses: samypr100/setup-dev-drive@30f0f98ae5636b2b6501e181dfb3631b9974818d # v4.0.0
         with:
           workspace-copy: true
@@ -95,7 +92,7 @@ jobs:
           rustup show
           git restore .
 
-      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
+      - uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
         with:
           workspaces: ${{ env.DEV_DRIVE_WORKSPACE }}
           save-if: ${{ github.ref_name == 'main' }}
@@ -104,9 +101,7 @@ jobs:
       - name: Run tests
         # No need for `cargo ck` because it's already checked in linux
         # Run `website` tests separately to avoid feature unification problems with `oxlint`
-        run: |
-          cargo test --workspace --all-features --exclude website
-          cargo test -p website
+        run: cargo test --workspace --all-features
         working-directory: ${{ env.DEV_DRIVE_WORKSPACE }}
         shell: bash
 
@@ -116,8 +111,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: s390x-unknown-linux-gnu
@@ -125,10 +120,7 @@ jobs:
       - run: cross --version
       # `--lib --bins --tests` to skip doctests which are very slow to run via `cross`.
       # https://github.com/cross-rs/cross/issues/1703
-      # Exclude NAPI crates because of linker errors.
-      - run: cross test --workspace --lib --bins --tests --all-features --exclude website --exclude oxc_minify_napi --exclude oxc_parser_napi --exclude oxc_playground_napi --exclude oxc_transform_napi --target s390x-unknown-linux-gnu
-      # Run separately to avoid feature unification problems with `oxlint`
-      - run: cross test -p website --target s390x-unknown-linux-gnu
+      - run: cross test --workspace --lib --bins --tests --all-features --target s390x-unknown-linux-gnu
 
   test-wasm32-wasip1-threads:
     name: Test wasm32-wasip1-threads
@@ -141,17 +133,18 @@ jobs:
           filters: |
             src:
               - '!crates/oxc_linter/**'
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: wasi
           save-cache: ${{ github.ref_name == 'main' }}
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
         if: steps.filter.outputs.src == 'true'
       - name: Build
         if: steps.filter.outputs.src == 'true'
         run: |
           rustup target add wasm32-wasip1-threads
+          pnpm napi build --target wasm32-wasip1-threads --cwd ./napi/playground
           pnpm napi build --target wasm32-wasip1-threads --cwd ./napi/parser
           pnpm napi build --target wasm32-wasip1-threads --cwd ./napi/transform
           pnpm napi build --target wasm32-wasip1-threads --cwd ./napi/minify
@@ -181,12 +174,12 @@ jobs:
               - '!crates/oxc_linter/**'
               - '!crates/oxc_language_server/**'
               - '!editors/**'
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: napi
           save-cache: ${{ github.ref_name == 'main' }}
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
         if: steps.filter.outputs.src == 'true'
       - uses: ./.github/actions/clone-submodules
         if: steps.filter.outputs.src == 'true'
@@ -228,12 +221,12 @@ jobs:
               - '!crates/oxc_linter/**'
               - '!crates/oxc_language_server/**'
               - '!editors/**'
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: napi
           save-cache: ${{ github.ref_name == 'main' }}
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
         if: steps.filter.outputs.src == 'true'
       - uses: ./.github/actions/clone-submodules
         if: steps.filter.outputs.src == 'true'
@@ -263,7 +256,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: crate-ci/typos@07d900b8fa1097806b8adb6391b0d3e0ac2fdea7 # v1.39.0
+      - uses: crate-ci/typos@2d0ce569feab1f8752f1dde43cc2f2aa53236e06 # v1.40.0
         with:
           files: .
 
@@ -272,8 +265,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: taiki-e/checkout-action@b13d20b7cda4e2f325ef19895128f7ff735c0b3d # v1.3.1
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         with:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: clippy
@@ -281,6 +274,11 @@ jobs:
       - run: cargo lint -- -D warnings
       - run: cargo lint --profile dev-no-debug-assertions -- -D warnings
       - run: RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --document-private-items
+      # Need to build Oxlint's JS bundle before linting `apps/oxlint`, because the tests reference
+      # the `index.d.ts` file produced by TSDown. Type-aware rules rely on this `.d.ts` file being present.
+      - name: Build Oxlint
+        working-directory: apps/oxlint
+        run: pnpm run build-js
       - run: node --run lint
 
   conformance:
@@ -301,10 +299,10 @@ jobs:
       - uses: ./.github/actions/clone-submodules
         if: steps.filter.outputs.src == 'true'
 
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
         if: steps.filter.outputs.src == 'true'
 
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: conformance
@@ -334,7 +332,7 @@ jobs:
               - 'crates/oxc_codegen/**'
               - 'tasks/minsize/**'
 
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: minsize
@@ -365,7 +363,7 @@ jobs:
               - 'crates/oxc_allocator/**'
               - 'tasks/track_memory_allocations/**'
 
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           cache-key: allocs
@@ -389,23 +387,15 @@ jobs:
         with:
           filters: ".github/generated/ast_changes_watch_list.yml"
 
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           components: rustfmt
-          tools: dprint
           cache-key: ast_changes
           save-cache: ${{ github.ref_name == 'main' }}
 
-      - uses: oxc-project/setup-node@fdbf0dfd334c4e6d56ceeb77d91c76339c2a0885 # v1.0.4
+      - uses: oxc-project/setup-node@141eb77546de6702f92d320926403fe3f9f6a6f2 # v1.0.5
         if: steps.filter.outputs.src == 'true'
-
-      - name: Restore dprint plugin cache
-        if: steps.filter.outputs.src == 'true'
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: dprint-${{ hashFiles('dprint.json') }}
-          path: ~/.cache/dprint
 
       - name: Check AST Changes
         if: steps.filter.outputs.src == 'true'
@@ -428,7 +418,7 @@ jobs:
               - 'crates/oxc_linter/**'
               - 'tasks/linter_codegen/**'
 
-      - uses: oxc-project/setup-rust@f03aedf4620c1d3aa169a2510e24787d362bbe0b # v1.0.8
+      - uses: oxc-project/setup-rust@ecabb7322a2ba5aeedb3612d2a40b86a85cee235 # v1.0.11
         if: steps.filter.outputs.src == 'true'
         with:
           components: rustfmt

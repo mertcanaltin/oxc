@@ -8,20 +8,14 @@ pub mod jsx;
 pub mod member_chain;
 pub mod object;
 pub mod statement_body;
-pub mod string_utils;
+pub mod string;
 pub mod suppressed;
 pub mod typecast;
 pub mod typescript;
 
-use oxc_allocator::Address;
-use oxc_ast::{AstKind, ast::CallExpression};
+use oxc_ast::ast::CallExpression;
 
-use crate::{
-    Format, FormatResult, FormatTrailingCommas,
-    ast_nodes::{AstNode, AstNodes},
-    format_args,
-    formatter::{Formatter, prelude::soft_line_break_or_space},
-};
+use crate::ast_nodes::{AstNode, AstNodes};
 
 /// Tests if expression is a long curried call
 ///
@@ -29,7 +23,9 @@ use crate::{
 /// `connect(a, b, c)(d)`
 /// ```
 pub fn is_long_curried_call(call: &AstNode<'_, CallExpression<'_>>) -> bool {
-    if let AstNodes::CallExpression(parent_call) = call.parent {
+    if let AstNodes::CallExpression(parent_call) = call.parent
+        && parent_call.is_callee_span(call.span)
+    {
         return call.arguments().len() > parent_call.arguments().len()
             && !parent_call.arguments().is_empty();
     }

@@ -26,7 +26,7 @@ impl Walk {
         let mut inner = ignore::WalkBuilder::new(
             target_paths
                 .first()
-                .expect("Expected paths parameter to Walk::build() to contain at least one path."),
+                .expect("`target_paths` never be empty, should have at least `cwd`"),
         );
         if let Some(paths) = target_paths.get(1..) {
             for path in paths {
@@ -227,7 +227,9 @@ impl ignore::ParallelVisitor for WalkVisitor {
                     return ignore::WalkState::Continue;
                 };
 
-                if !file_type.is_dir()
+                // Use `is_file()` to detect symlinks to the directory named `.js`
+                #[expect(clippy::filetype_is_file)]
+                if file_type.is_file()
                     && let Some(source_type) = get_supported_source_type(entry.path())
                 {
                     let walk_entry = WalkEntry { path: entry.path().to_path_buf(), source_type };

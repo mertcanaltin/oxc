@@ -19,6 +19,7 @@ mod promise;
 mod react;
 mod react_perf;
 mod regex;
+mod typescript;
 mod unicorn;
 mod url;
 mod vitest;
@@ -26,10 +27,12 @@ mod vue;
 
 pub use self::{
     comment::*, config::*, express::*, jest::*, jsdoc::*, nextjs::*, promise::*, react::*,
-    react_perf::*, regex::*, unicorn::*, url::*, vitest::*, vue::*,
+    react_perf::*, regex::*, typescript::*, unicorn::*, url::*, vitest::*, vue::*,
 };
 
 /// List of Jest rules that have Vitest equivalents.
+// When adding a new rule to this list, please ensure oxlint-migrate is also updated.
+// See https://github.com/oxc-project/oxlint-migrate/blob/2c336c67d75adb09a402ae66fb3099f1dedbe516/scripts/constants.ts
 const VITEST_COMPATIBLE_JEST_RULES: [&str; 35] = [
     "consistent-test-it",
     "expect-expect",
@@ -68,7 +71,9 @@ const VITEST_COMPATIBLE_JEST_RULES: [&str; 35] = [
     "valid-expect",
 ];
 
-// List of Eslint rules that have Typescript equivalents.
+/// List of Eslint rules that have TypeScript equivalents.
+// When adding a new rule to this list, please ensure oxlint-migrate is also updated.
+// See https://github.com/oxc-project/oxlint-migrate/blob/659b461eaf5b2f8a7283822ae84a5e619c86fca3/src/constants.ts#L24
 const TYPESCRIPT_COMPATIBLE_ESLINT_RULES: [&str; 18] = [
     "class-methods-use-this",
     "default-param-last",

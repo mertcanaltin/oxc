@@ -1,13 +1,13 @@
 use std::path::Path;
 
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::{
     ArrowParentheses, AttributePosition, BracketSameLine, BracketSpacing,
     EmbeddedLanguageFormatting, Expand, FormatOptions, IndentStyle, IndentWidth, LineEnding,
-    LineWidth, OperatorPosition, QuoteProperties, QuoteStyle, Semicolons, SortImports, SortOrder,
-    TrailingCommas,
+    LineWidth, QuoteProperties, QuoteStyle, Semicolons, SortImportsOptions, SortOrder,
+    TrailingCommas, default_groups, default_internal_patterns,
 };
 
 /// Configuration options for the formatter.
@@ -25,7 +25,7 @@ pub struct Oxfmtrc {
     /// Which end of line characters to apply. (Default: "lf")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub end_of_line: Option<EndOfLineConfig>,
-    /// The line length that the printer will wrap on. (Default: 80)
+    /// The line length that the printer will wrap on. (Default: 100)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub print_width: Option<u16>,
     /// Use single quotes instead of double quotes. (Default: false)
@@ -59,12 +59,16 @@ pub struct Oxfmtrc {
     /// Put each attribute on a new line in JSX. (Default: false)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub single_attribute_per_line: Option<bool>,
-    /// Experimental: Position of operators in expressions. (Default: "end")
+
+    // NOTE: These experimental options are not yet supported.
+    // Just be here to report error if they are used.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub experimental_operator_position: Option<OperatorPositionConfig>,
-    // TODO: Experimental: Use curious ternaries which move `?` after the condition. (Default: false)
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub experimental_ternaries: Option<bool>,
+    #[schemars(skip)]
+    pub experimental_operator_position: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(skip)]
+    pub experimental_ternaries: Option<serde_json::Value>,
+
     /// Control whether formats quoted code embedded in the file. (Default: "auto")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedded_language_formatting: Option<EmbeddedLanguageFormattingConfig>,
@@ -125,17 +129,10 @@ pub enum ObjectWrapConfig {
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-pub enum OperatorPositionConfig {
-    Start,
-    #[default]
-    End,
-}
-
-#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
 pub enum EmbeddedLanguageFormattingConfig {
-    #[default]
     Auto,
+    // Disable by default at alpha release, synced with `options.rs`
+    #[default]
     Off,
 }
 
@@ -152,10 +149,66 @@ pub struct SortImportsConfig {
     pub order: Option<SortOrderConfig>,
     #[serde(default = "default_true")]
     pub ignore_case: bool,
+    #[serde(default = "default_true")]
+    pub newlines_between: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub internal_pattern: Option<Vec<String>>,
+    /// Custom groups configuration for organizing imports.
+    /// Each array element represents a group, and multiple group names in the same array are treated as one.
+    /// Accepts both `string` and `string[]` as group elements.
+    #[serde(skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_groups")]
+    pub groups: Option<Vec<Vec<String>>>,
 }
 
 fn default_true() -> bool {
     true
+}
+
+/// Custom deserializer for groups field to support both `string` and `string[]` as group elements
+fn deserialize_groups<'de, D>(deserializer: D) -> Result<Option<Vec<Vec<String>>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    use serde_json::Value;
+
+    let value: Option<Value> = Option::deserialize(deserializer)?;
+
+    match value {
+        None => Ok(None),
+        Some(Value::Array(arr)) => {
+            let mut groups = Vec::new();
+            for item in arr {
+                match item {
+                    // Single string becomes a single-element group
+                    Value::String(s) => {
+                        groups.push(vec![s]);
+                    }
+                    // Array of strings becomes a group
+                    Value::Array(group_arr) => {
+                        let mut group = Vec::new();
+                        for g in group_arr {
+                            if let Value::String(s) = g {
+                                group.push(s);
+                            } else {
+                                return Err(D::Error::custom(
+                                    "groups array elements must contain only strings",
+                                ));
+                            }
+                        }
+                        groups.push(group);
+                    }
+                    _ => {
+                        return Err(D::Error::custom(
+                            "groups must be an array of strings or arrays of strings",
+                        ));
+                    }
+                }
+            }
+            Ok(Some(groups))
+        }
+        Some(_) => Err(D::Error::custom("groups must be an array")),
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, JsonSchema)]
@@ -184,17 +237,24 @@ impl Oxfmtrc {
         json_strip_comments::strip(&mut string)
             .map_err(|err| format!("Failed to strip comments from {}: {err}", path.display()))?;
 
-        let json = serde_json::from_str::<serde_json::Value>(&string)
-            .map_err(|err| format!("Failed to parse config {}: {err}", path.display()))?;
-
         // NOTE: String enum deserialization errors are handled here
-        Self::deserialize(&json)
+        serde_json::from_str(&string)
             .map_err(|err| format!("Failed to deserialize config {}: {err}", path.display()))
     }
 
     /// # Errors
     /// Returns error if any option value is invalid
     pub fn into_format_options(self) -> Result<FormatOptions, String> {
+        // Not yet supported options:
+        // [Prettier] experimentalOperatorPosition: "start" | "end"
+        // [Prettier] experimentalTernaries: boolean
+        if self.experimental_operator_position.is_some() {
+            return Err("Unsupported option: `experimentalOperatorPosition`".to_string());
+        }
+        if self.experimental_ternaries.is_some() {
+            return Err("Unsupported option: `experimentalTernaries`".to_string());
+        }
+
         let mut options = FormatOptions::default();
 
         // [Prettier] useTabs: boolean
@@ -296,14 +356,6 @@ impl Oxfmtrc {
             };
         }
 
-        // [Prettier] experimentalOperatorPosition: "start" | "end"
-        if let Some(position) = self.experimental_operator_position {
-            options.experimental_operator_position = match position {
-                OperatorPositionConfig::Start => OperatorPosition::Start,
-                OperatorPositionConfig::End => OperatorPosition::End,
-            };
-        }
-
         if let Some(embedded_language_formatting) = self.embedded_language_formatting {
             options.embedded_language_formatting = match embedded_language_formatting {
                 EmbeddedLanguageFormattingConfig::Auto => EmbeddedLanguageFormatting::Auto,
@@ -314,16 +366,25 @@ impl Oxfmtrc {
         // Below are our own extensions
 
         if let Some(sort_imports_config) = self.experimental_sort_imports {
-            options.experimental_sort_imports = Some(SortImports {
+            // `partition_by_newline: true` and `newlines_between` cannot be used together
+            if sort_imports_config.partition_by_newline && sort_imports_config.newlines_between {
+                return Err("Invalid `sortImports` configuration: `partitionByNewline: true` and `newlinesBetween: true` cannot be used together".to_string());
+            }
+
+            options.experimental_sort_imports = Some(SortImportsOptions {
                 partition_by_newline: sort_imports_config.partition_by_newline,
                 partition_by_comment: sort_imports_config.partition_by_comment,
                 sort_side_effects: sort_imports_config.sort_side_effects,
-                order: sort_imports_config.order.map_or(SortOrder::Asc, |o| match o {
+                order: sort_imports_config.order.map_or(SortOrder::default(), |o| match o {
                     SortOrderConfig::Asc => SortOrder::Asc,
                     SortOrderConfig::Desc => SortOrder::Desc,
                 }),
-
                 ignore_case: sort_imports_config.ignore_case,
+                newlines_between: sort_imports_config.newlines_between,
+                internal_pattern: sort_imports_config
+                    .internal_pattern
+                    .unwrap_or_else(default_internal_patterns),
+                groups: sort_imports_config.groups.unwrap_or_else(default_groups),
             });
         }
 
@@ -348,7 +409,8 @@ mod tests {
             "experimentalSortImports": {
                 "partitionByNewline": true,
                 "order": "desc",
-                "ignoreCase": false
+                "ignoreCase": false,
+                "newlinesBetween": false
             }
         }"#;
 
@@ -365,15 +427,16 @@ mod tests {
         assert!(sort_imports.partition_by_newline);
         assert!(sort_imports.order.is_desc());
         assert!(!sort_imports.ignore_case);
+        assert!(!sort_imports.newlines_between);
     }
 
     #[test]
     fn test_ignore_unknown_fields() {
         let config: Oxfmtrc = serde_json::from_str(
             r#"{
-            "unknownField": "someValue",
-            "anotherUnknown": 123
-        }"#,
+                "unknownField": "someValue",
+                "anotherUnknown": 123
+            }"#,
         )
         .unwrap();
         let options = config.into_format_options().unwrap();
@@ -381,7 +444,7 @@ mod tests {
         // Should use defaults
         assert!(options.indent_style.is_space());
         assert_eq!(options.indent_width.value(), 2);
-        assert_eq!(options.line_width.value(), 80);
+        assert_eq!(options.line_width.value(), 100);
         assert_eq!(options.experimental_sort_imports, None);
     }
 
@@ -393,7 +456,7 @@ mod tests {
         // Should use defaults
         assert!(options.indent_style.is_space());
         assert_eq!(options.indent_width.value(), 2);
-        assert_eq!(options.line_width.value(), 80);
+        assert_eq!(options.line_width.value(), 100);
         assert_eq!(options.experimental_sort_imports, None);
     }
 
@@ -426,5 +489,85 @@ mod tests {
         let config: Oxfmtrc = serde_json::from_str(r#"{"objectWrap": "always"}"#).unwrap();
         let options = config.into_format_options().unwrap();
         assert_eq!(options.expand, Expand::Always);
+    }
+
+    #[test]
+    fn test_sort_imports_config() {
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+            "experimentalSortImports": {}
+        }"#,
+        )
+        .unwrap();
+        let sort_imports = config.into_format_options().unwrap().experimental_sort_imports.unwrap();
+        assert!(sort_imports.newlines_between);
+        assert!(!sort_imports.partition_by_newline);
+
+        // Test explicit false
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+                "experimentalSortImports": {
+                    "newlinesBetween": false
+                }
+            }"#,
+        )
+        .unwrap();
+        let sort_imports = config.into_format_options().unwrap().experimental_sort_imports.unwrap();
+        assert!(!sort_imports.newlines_between);
+        assert!(!sort_imports.partition_by_newline);
+
+        // Test explicit true
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+                "experimentalSortImports": {
+                    "newlinesBetween": true
+                }
+            }"#,
+        )
+        .unwrap();
+        let sort_imports = config.into_format_options().unwrap().experimental_sort_imports.unwrap();
+        assert!(sort_imports.newlines_between);
+        assert!(!sort_imports.partition_by_newline);
+
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+                "experimentalSortImports": {
+                    "partitionByNewline": true,
+                    "newlinesBetween": false
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(config.into_format_options().is_ok());
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+                "experimentalSortImports": {
+                    "partitionByNewline": true,
+                    "newlinesBetween": true
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(config.into_format_options().is_err_and(|e| e.contains("newlinesBetween")));
+
+        let config: Oxfmtrc = serde_json::from_str(
+            r#"{
+                "experimentalSortImports": {
+                    "groups": [
+                        "builtin",
+                        ["external", "internal"],
+                        "parent",
+                        "sibling",
+                        "index"
+                    ]
+                }
+            }"#,
+        )
+        .unwrap();
+        let sort_imports = config.into_format_options().unwrap().experimental_sort_imports.unwrap();
+        assert_eq!(sort_imports.groups.len(), 5);
+        assert_eq!(sort_imports.groups[0], vec!["builtin".to_string()]);
+        assert_eq!(sort_imports.groups[1], vec!["external".to_string(), "internal".to_string()]);
+        assert_eq!(sort_imports.groups[4], vec!["index".to_string()]);
     }
 }

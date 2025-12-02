@@ -7,6 +7,7 @@ use std::{
 };
 
 use cow_utils::CowUtils;
+use oxc_span::SourceType;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -320,26 +321,6 @@ impl Tester {
         self
     }
 
-    pub fn with_jsx_a11y_plugin(mut self, yes: bool) -> Self {
-        self.plugins.set(LintPlugins::JSX_A11Y, yes);
-        self
-    }
-
-    pub fn with_nextjs_plugin(mut self, yes: bool) -> Self {
-        self.plugins.set(LintPlugins::NEXTJS, yes);
-        self
-    }
-
-    pub fn with_react_perf_plugin(mut self, yes: bool) -> Self {
-        self.plugins.set(LintPlugins::REACT_PERF, yes);
-        self
-    }
-
-    pub fn with_node_plugin(mut self, yes: bool) -> Self {
-        self.plugins.set(LintPlugins::NODE, yes);
-        self
-    }
-
     /// Add cases that should fix problems found in the source code.
     ///
     /// These cases will fail if no fixes are produced or if the fixed source
@@ -501,7 +482,7 @@ impl Tester {
         fix_kind: ExpectFixKind,
         fix_index: u8,
     ) -> TestResult {
-        let rule = self.find_rule().read_json(rule_config.unwrap_or_default());
+        let rule = self.find_rule().from_configuration(rule_config.unwrap_or_default());
         let mut external_plugin_store = ExternalPluginStore::default();
         let linter = Linter::new(
             self.lint_options,
@@ -524,7 +505,7 @@ impl Tester {
                             }),
                     )
                     .with_rule(rule, AllowWarnDeny::Warn)
-                    .build(&external_plugin_store)
+                    .build(&mut external_plugin_store)
                     .unwrap(),
                 FxHashMap::default(),
                 external_plugin_store,
@@ -547,23 +528,21 @@ impl Tester {
         let cwd = self.current_working_directory.clone();
         let paths = vec![Arc::<OsStr>::from(path_to_lint.as_os_str())];
         let options = LintServiceOptions::new(cwd).with_cross_module(self.plugins.has_import());
-        let mut lint_service = LintService::new(linter, options);
-        lint_service
-            .with_file_system(Box::new(TesterFileSystem::new(
-                path_to_lint,
-                source_text.to_string(),
-            )))
-            .with_paths(paths);
+        let lint_service = LintService::new(linter, options);
+        let file_system = TesterFileSystem::new(path_to_lint.clone(), source_text.to_string());
 
         let (sender, _receiver) = mpsc::channel();
-        let result = lint_service.run_test_source(false, &sender);
+        let result = lint_service.run_test_source(&file_system, paths, false, &sender);
 
         if result.is_empty() {
             return TestResult::Passed;
         }
 
         if fix_kind.is_some() {
-            let fix_result = Fixer::new(source_text, result).with_fix_index(fix_index).fix();
+            let fix_result =
+                Fixer::new(source_text, result, SourceType::from_path(path_to_lint).ok())
+                    .with_fix_index(fix_index)
+                    .fix();
             return TestResult::Fixed(fix_result.fixed_code.to_string());
         }
 

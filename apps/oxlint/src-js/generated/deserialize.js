@@ -1,6 +1,8 @@
 // Auto-generated code, DO NOT EDIT DIRECTLY!
 // To edit this generated file you have to edit `tasks/ast_tools/src/generators/raw_transfer.rs`.
 
+import { tokens, initTokens } from "../plugins/tokens.js";
+
 let uint8,
   uint32,
   float64,
@@ -11,7 +13,7 @@ let uint8,
   parent = null,
   getLoc;
 
-const textDecoder = new TextDecoder('utf-8', { ignoreBOM: true }),
+const textDecoder = new TextDecoder("utf-8", { ignoreBOM: true }),
   decodeStr = textDecoder.decode.bind(textDecoder),
   { fromCodePoint } = String,
   NodeProto = Object.create(null, {
@@ -49,18 +51,23 @@ function deserializeProgram(pos) {
     end = deserializeU32(pos + 4),
     program = (parent = {
       __proto__: NodeProto,
-      type: 'Program',
+      type: "Program",
       body: null,
       sourceType: deserializeModuleKind(pos + 125),
       hashbang: null,
       get comments() {
         // Check AST in buffer is still the same AST (buffers are reused)
-        if (localAstId !== astId) throw Error('Comments are only accessible while linting the file');
+        if (localAstId !== astId)
+          throw Error("Comments are only accessible while linting the file");
         // Deserialize the comments.
         // Replace this getter with the comments array, so we don't deserialize twice.
         let comments = deserializeVecComment(pos + 24);
-        Object.defineProperty(this, 'comments', { value: comments });
+        Object.defineProperty(this, "comments", { value: comments });
         return comments;
+      },
+      get tokens() {
+        tokens === null && initTokens();
+        return tokens;
       },
       start: 0,
       end,
@@ -75,9 +82,13 @@ function deserializeProgram(pos) {
     if (body.length > 0) {
       let first = body[0];
       start = first.start;
-      if (first.type === 'ExportNamedDeclaration' || first.type === 'ExportDefaultDeclaration') {
+      if (first.type === "ExportNamedDeclaration" || first.type === "ExportDefaultDeclaration") {
         let { declaration } = first;
-        if (declaration !== null && declaration.type === 'ClassDeclaration' && declaration.decorators.length > 0) {
+        if (
+          declaration !== null &&
+          declaration.type === "ClassDeclaration" &&
+          declaration.decorators.length > 0
+        ) {
           let decoratorStart = declaration.decorators[0].start;
           decoratorStart < start && (start = decoratorStart);
         }
@@ -188,7 +199,7 @@ function deserializeIdentifierName(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: deserializeStr(pos + 8),
       optional: null,
@@ -200,7 +211,6 @@ function deserializeIdentifierName(pos) {
     });
   node.decorators = [];
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -211,7 +221,7 @@ function deserializeIdentifierReference(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: deserializeStr(pos + 8),
       optional: null,
@@ -223,7 +233,6 @@ function deserializeIdentifierReference(pos) {
     });
   node.decorators = [];
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -234,7 +243,7 @@ function deserializeBindingIdentifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: deserializeStr(pos + 8),
       optional: null,
@@ -246,7 +255,6 @@ function deserializeBindingIdentifier(pos) {
     });
   node.decorators = [];
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -257,7 +265,7 @@ function deserializeLabelIdentifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: deserializeStr(pos + 8),
       optional: null,
@@ -269,7 +277,6 @@ function deserializeLabelIdentifier(pos) {
     });
   node.decorators = [];
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -279,7 +286,7 @@ function deserializeThisExpression(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'ThisExpression',
+    type: "ThisExpression",
     start,
     end,
     range: [start, end],
@@ -293,7 +300,7 @@ function deserializeArrayExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ArrayExpression',
+      type: "ArrayExpression",
       elements: null,
       start,
       end,
@@ -412,7 +419,7 @@ function deserializeObjectExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ObjectExpression',
+      type: "ObjectExpression",
       properties: null,
       start,
       end,
@@ -441,7 +448,7 @@ function deserializeObjectProperty(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Property',
+      type: "Property",
       kind: deserializePropertyKind(pos + 40),
       key: null,
       value: null,
@@ -561,11 +568,11 @@ function deserializePropertyKey(pos) {
 function deserializePropertyKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'init';
+      return "init";
     case 1:
-      return 'get';
+      return "get";
     case 2:
-      return 'set';
+      return "set";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for PropertyKind`);
   }
@@ -577,7 +584,7 @@ function deserializeTemplateLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TemplateLiteral',
+      type: "TemplateLiteral",
       quasis: null,
       expressions: null,
       start,
@@ -597,7 +604,7 @@ function deserializeTaggedTemplateExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TaggedTemplateExpression',
+      type: "TaggedTemplateExpression",
       tag: null,
       typeArguments: null,
       quasi: null,
@@ -620,10 +627,12 @@ function deserializeTemplateElement(pos) {
     value = deserializeTemplateElementValue(pos + 8);
   value.cooked !== null &&
     deserializeBool(pos + 41) &&
-    (value.cooked = value.cooked.replace(/\uFFFD(.{4})/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16))));
+    (value.cooked = value.cooked.replace(/\uFFFD(.{4})/g, (_, hex) =>
+      String.fromCodePoint(parseInt(hex, 16)),
+    ));
   return {
     __proto__: NodeProto,
-    type: 'TemplateElement',
+    type: "TemplateElement",
     value,
     tail,
     start,
@@ -646,7 +655,7 @@ function deserializeComputedMemberExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'MemberExpression',
+      type: "MemberExpression",
       object: null,
       property: null,
       optional: deserializeBool(pos + 40),
@@ -669,7 +678,7 @@ function deserializeStaticMemberExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'MemberExpression',
+      type: "MemberExpression",
       object: null,
       property: null,
       optional: deserializeBool(pos + 48),
@@ -692,7 +701,7 @@ function deserializePrivateFieldExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'MemberExpression',
+      type: "MemberExpression",
       object: null,
       property: null,
       optional: deserializeBool(pos + 48),
@@ -715,7 +724,7 @@ function deserializeCallExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'CallExpression',
+      type: "CallExpression",
       callee: null,
       typeArguments: null,
       arguments: null,
@@ -738,7 +747,7 @@ function deserializeNewExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'NewExpression',
+      type: "NewExpression",
       callee: null,
       typeArguments: null,
       arguments: null,
@@ -760,7 +769,7 @@ function deserializeMetaProperty(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'MetaProperty',
+      type: "MetaProperty",
       meta: null,
       property: null,
       start,
@@ -780,7 +789,7 @@ function deserializeSpreadElement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'SpreadElement',
+      type: "SpreadElement",
       argument: null,
       start,
       end,
@@ -893,7 +902,7 @@ function deserializeUpdateExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'UpdateExpression',
+      type: "UpdateExpression",
       operator: deserializeUpdateOperator(pos + 24),
       prefix: deserializeBool(pos + 25),
       argument: null,
@@ -913,7 +922,7 @@ function deserializeUnaryExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'UnaryExpression',
+      type: "UnaryExpression",
       operator: deserializeUnaryOperator(pos + 24),
       argument: null,
       prefix: null,
@@ -934,7 +943,7 @@ function deserializeBinaryExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'BinaryExpression',
+      type: "BinaryExpression",
       left: null,
       operator: deserializeBinaryOperator(pos + 40),
       right: null,
@@ -955,7 +964,7 @@ function deserializePrivateInExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'BinaryExpression',
+      type: "BinaryExpression",
       left: null,
       operator: null,
       right: null,
@@ -965,7 +974,7 @@ function deserializePrivateInExpression(pos) {
       parent,
     });
   node.left = deserializePrivateIdentifier(pos + 8);
-  node.operator = 'in';
+  node.operator = "in";
   node.right = deserializeExpression(pos + 32);
   parent = previousParent;
   return node;
@@ -977,7 +986,7 @@ function deserializeLogicalExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'LogicalExpression',
+      type: "LogicalExpression",
       left: null,
       operator: deserializeLogicalOperator(pos + 40),
       right: null,
@@ -998,7 +1007,7 @@ function deserializeConditionalExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ConditionalExpression',
+      type: "ConditionalExpression",
       test: null,
       consequent: null,
       alternate: null,
@@ -1020,7 +1029,7 @@ function deserializeAssignmentExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'AssignmentExpression',
+      type: "AssignmentExpression",
       operator: deserializeAssignmentOperator(pos + 40),
       left: null,
       right: null,
@@ -1091,7 +1100,7 @@ function deserializeArrayAssignmentTarget(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ArrayPattern',
+      type: "ArrayPattern",
       decorators: null,
       elements: null,
       optional: null,
@@ -1107,7 +1116,6 @@ function deserializeArrayAssignmentTarget(pos) {
   node.decorators = [];
   node.elements = elements;
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -1118,7 +1126,7 @@ function deserializeObjectAssignmentTarget(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ObjectPattern',
+      type: "ObjectPattern",
       decorators: null,
       properties: null,
       optional: null,
@@ -1134,7 +1142,6 @@ function deserializeObjectAssignmentTarget(pos) {
   node.decorators = [];
   node.properties = properties;
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -1145,7 +1152,7 @@ function deserializeAssignmentTargetRest(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'RestElement',
+      type: "RestElement",
       decorators: null,
       argument: null,
       optional: null,
@@ -1159,8 +1166,6 @@ function deserializeAssignmentTargetRest(pos) {
   node.decorators = [];
   node.argument = deserializeAssignmentTarget(pos + 8);
   node.optional = false;
-  node.typeAnnotation = null;
-  node.value = null;
   parent = previousParent;
   return node;
 }
@@ -1200,7 +1205,7 @@ function deserializeAssignmentTargetWithDefault(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'AssignmentPattern',
+      type: "AssignmentPattern",
       decorators: null,
       left: null,
       right: null,
@@ -1215,7 +1220,6 @@ function deserializeAssignmentTargetWithDefault(pos) {
   node.left = deserializeAssignmentTarget(pos + 8);
   node.right = deserializeExpression(pos + 24);
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -1237,7 +1241,7 @@ function deserializeAssignmentTargetPropertyIdentifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Property',
+      type: "Property",
       kind: null,
       key: null,
       value: null,
@@ -1251,14 +1255,26 @@ function deserializeAssignmentTargetPropertyIdentifier(pos) {
       parent,
     }),
     key = deserializeIdentifierReference(pos + 8),
-    init = deserializeOptionExpression(pos + 40),
-    value = { ...key };
-  if (init !== null) {
-    let left = value,
-      previousParent = parent;
-    value = parent = {
+    keyStart,
+    keyEnd,
+    value = {
       __proto__: NodeProto,
-      type: 'AssignmentPattern',
+      type: "Identifier",
+      decorators: [],
+      name: key.name,
+      optional: false,
+      typeAnnotation: null,
+      start: (keyStart = key.start),
+      end: (keyEnd = key.end),
+      range: [keyStart, keyEnd],
+      parent,
+    },
+    init = deserializeOptionExpression(pos + 40);
+  if (init !== null) {
+    let left = value;
+    value = {
+      __proto__: NodeProto,
+      type: "AssignmentPattern",
       decorators: [],
       left,
       right: init,
@@ -1271,9 +1287,8 @@ function deserializeAssignmentTargetPropertyIdentifier(pos) {
     };
     left.parent = value;
     init.parent = value;
-    parent = previousParent;
   }
-  node.kind = 'init';
+  node.kind = "init";
   node.key = key;
   node.value = value;
   node.method = false;
@@ -1290,7 +1305,7 @@ function deserializeAssignmentTargetPropertyProperty(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Property',
+      type: "Property",
       kind: null,
       key: null,
       value: null,
@@ -1303,7 +1318,7 @@ function deserializeAssignmentTargetPropertyProperty(pos) {
       range: [start, end],
       parent,
     });
-  node.kind = 'init';
+  node.kind = "init";
   node.key = deserializePropertyKey(pos + 8);
   node.value = deserializeAssignmentTargetMaybeDefault(pos + 24);
   node.method = false;
@@ -1319,7 +1334,7 @@ function deserializeSequenceExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'SequenceExpression',
+      type: "SequenceExpression",
       expressions: null,
       start,
       end,
@@ -1336,7 +1351,7 @@ function deserializeSuper(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'Super',
+    type: "Super",
     start,
     end,
     range: [start, end],
@@ -1350,7 +1365,7 @@ function deserializeAwaitExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'AwaitExpression',
+      type: "AwaitExpression",
       argument: null,
       start,
       end,
@@ -1368,7 +1383,7 @@ function deserializeChainExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ChainExpression',
+      type: "ChainExpression",
       expression: null,
       start,
       end,
@@ -1456,6 +1471,8 @@ function deserializeStatement(pos) {
     case 38:
       return deserializeBoxTSModuleDeclaration(pos + 8);
     case 39:
+      return deserializeBoxTSGlobalDeclaration(pos + 8);
+    case 40:
       return deserializeBoxTSImportEqualsDeclaration(pos + 8);
     case 64:
       return deserializeBoxImportDeclaration(pos + 8);
@@ -1480,7 +1497,7 @@ function deserializeDirective(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExpressionStatement',
+      type: "ExpressionStatement",
       expression: null,
       directive: deserializeStr(pos + 56),
       start,
@@ -1498,7 +1515,7 @@ function deserializeHashbang(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'Hashbang',
+    type: "Hashbang",
     value: deserializeStr(pos + 8),
     start,
     end,
@@ -1513,7 +1530,7 @@ function deserializeBlockStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'BlockStatement',
+      type: "BlockStatement",
       body: null,
       start,
       end,
@@ -1542,6 +1559,8 @@ function deserializeDeclaration(pos) {
     case 38:
       return deserializeBoxTSModuleDeclaration(pos + 8);
     case 39:
+      return deserializeBoxTSGlobalDeclaration(pos + 8);
+    case 40:
       return deserializeBoxTSImportEqualsDeclaration(pos + 8);
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for Declaration`);
@@ -1554,7 +1573,7 @@ function deserializeVariableDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'VariableDeclaration',
+      type: "VariableDeclaration",
       kind: deserializeVariableDeclarationKind(pos + 32),
       declarations: null,
       declare: deserializeBool(pos + 33),
@@ -1571,15 +1590,15 @@ function deserializeVariableDeclaration(pos) {
 function deserializeVariableDeclarationKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'var';
+      return "var";
     case 1:
-      return 'let';
+      return "let";
     case 2:
-      return 'const';
+      return "const";
     case 3:
-      return 'using';
+      return "using";
     case 4:
-      return 'await using';
+      return "await using";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for VariableDeclarationKind`);
   }
@@ -1591,7 +1610,7 @@ function deserializeVariableDeclarator(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'VariableDeclarator',
+      type: "VariableDeclarator",
       id: null,
       init: null,
       definite: deserializeBool(pos + 57),
@@ -1611,7 +1630,7 @@ function deserializeEmptyStatement(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'EmptyStatement',
+    type: "EmptyStatement",
     start,
     end,
     range: [start, end],
@@ -1625,7 +1644,7 @@ function deserializeExpressionStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExpressionStatement',
+      type: "ExpressionStatement",
       expression: null,
       directive: null,
       start,
@@ -1634,7 +1653,6 @@ function deserializeExpressionStatement(pos) {
       parent,
     });
   node.expression = deserializeExpression(pos + 8);
-  node.directive = null;
   parent = previousParent;
   return node;
 }
@@ -1645,7 +1663,7 @@ function deserializeIfStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'IfStatement',
+      type: "IfStatement",
       test: null,
       consequent: null,
       alternate: null,
@@ -1667,7 +1685,7 @@ function deserializeDoWhileStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'DoWhileStatement',
+      type: "DoWhileStatement",
       body: null,
       test: null,
       start,
@@ -1687,7 +1705,7 @@ function deserializeWhileStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'WhileStatement',
+      type: "WhileStatement",
       test: null,
       body: null,
       start,
@@ -1707,7 +1725,7 @@ function deserializeForStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ForStatement',
+      type: "ForStatement",
       init: null,
       test: null,
       update: null,
@@ -1826,7 +1844,7 @@ function deserializeForInStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ForInStatement',
+      type: "ForInStatement",
       left: null,
       right: null,
       body: null,
@@ -1877,7 +1895,7 @@ function deserializeForOfStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ForOfStatement',
+      type: "ForOfStatement",
       await: deserializeBool(pos + 60),
       left: null,
       right: null,
@@ -1900,7 +1918,7 @@ function deserializeContinueStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ContinueStatement',
+      type: "ContinueStatement",
       label: null,
       start,
       end,
@@ -1918,7 +1936,7 @@ function deserializeBreakStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'BreakStatement',
+      type: "BreakStatement",
       label: null,
       start,
       end,
@@ -1936,7 +1954,7 @@ function deserializeReturnStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ReturnStatement',
+      type: "ReturnStatement",
       argument: null,
       start,
       end,
@@ -1954,7 +1972,7 @@ function deserializeWithStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'WithStatement',
+      type: "WithStatement",
       object: null,
       body: null,
       start,
@@ -1974,7 +1992,7 @@ function deserializeSwitchStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'SwitchStatement',
+      type: "SwitchStatement",
       discriminant: null,
       cases: null,
       start,
@@ -1994,7 +2012,7 @@ function deserializeSwitchCase(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'SwitchCase',
+      type: "SwitchCase",
       test: null,
       consequent: null,
       start,
@@ -2014,7 +2032,7 @@ function deserializeLabeledStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'LabeledStatement',
+      type: "LabeledStatement",
       label: null,
       body: null,
       start,
@@ -2034,7 +2052,7 @@ function deserializeThrowStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ThrowStatement',
+      type: "ThrowStatement",
       argument: null,
       start,
       end,
@@ -2052,7 +2070,7 @@ function deserializeTryStatement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TryStatement',
+      type: "TryStatement",
       block: null,
       handler: null,
       finalizer: null,
@@ -2074,7 +2092,7 @@ function deserializeCatchClause(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'CatchClause',
+      type: "CatchClause",
       param: null,
       body: null,
       start,
@@ -2097,7 +2115,7 @@ function deserializeDebuggerStatement(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'DebuggerStatement',
+    type: "DebuggerStatement",
     start,
     end,
     range: [start, end],
@@ -2138,7 +2156,7 @@ function deserializeAssignmentPattern(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'AssignmentPattern',
+      type: "AssignmentPattern",
       decorators: null,
       left: null,
       right: null,
@@ -2153,7 +2171,6 @@ function deserializeAssignmentPattern(pos) {
   node.left = deserializeBindingPattern(pos + 8);
   node.right = deserializeExpression(pos + 40);
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -2164,7 +2181,7 @@ function deserializeObjectPattern(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ObjectPattern',
+      type: "ObjectPattern",
       decorators: null,
       properties: null,
       optional: null,
@@ -2180,7 +2197,6 @@ function deserializeObjectPattern(pos) {
   node.decorators = [];
   node.properties = properties;
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -2191,7 +2207,7 @@ function deserializeBindingProperty(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Property',
+      type: "Property",
       kind: null,
       key: null,
       value: null,
@@ -2204,7 +2220,7 @@ function deserializeBindingProperty(pos) {
       range: [start, end],
       parent,
     });
-  node.kind = 'init';
+  node.kind = "init";
   node.key = deserializePropertyKey(pos + 8);
   node.value = deserializeBindingPattern(pos + 24);
   node.method = false;
@@ -2219,7 +2235,7 @@ function deserializeArrayPattern(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ArrayPattern',
+      type: "ArrayPattern",
       decorators: null,
       elements: null,
       optional: null,
@@ -2235,7 +2251,6 @@ function deserializeArrayPattern(pos) {
   node.decorators = [];
   node.elements = elements;
   node.optional = false;
-  node.typeAnnotation = null;
   parent = previousParent;
   return node;
 }
@@ -2246,7 +2261,7 @@ function deserializeBindingRestElement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'RestElement',
+      type: "RestElement",
       decorators: null,
       argument: null,
       optional: null,
@@ -2260,8 +2275,6 @@ function deserializeBindingRestElement(pos) {
   node.decorators = [];
   node.argument = deserializeBindingPattern(pos + 8);
   node.optional = false;
-  node.typeAnnotation = null;
-  node.value = null;
   parent = previousParent;
   return node;
 }
@@ -2305,13 +2318,13 @@ function deserializeFunction(pos) {
 function deserializeFunctionType(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'FunctionDeclaration';
+      return "FunctionDeclaration";
     case 1:
-      return 'FunctionExpression';
+      return "FunctionExpression";
     case 2:
-      return 'TSDeclareFunction';
+      return "TSDeclareFunction";
     case 3:
-      return 'TSEmptyBodyFunctionExpression';
+      return "TSEmptyBodyFunctionExpression";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for FunctionType`);
   }
@@ -2326,7 +2339,7 @@ function deserializeFormalParameters(pos) {
       previousParent = parent,
       rest = (parent = {
         __proto__: NodeProto,
-        type: 'RestElement',
+        type: "RestElement",
         decorators: [],
         argument: null,
         optional: deserializeBool(pos + 32),
@@ -2361,7 +2374,7 @@ function deserializeFormalParameter(pos) {
       let start, end;
       param = parent = {
         __proto__: NodeProto,
-        type: 'TSParameterProperty',
+        type: "TSParameterProperty",
         accessibility,
         decorators: null,
         override,
@@ -2387,7 +2400,7 @@ function deserializeFunctionBody(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'BlockStatement',
+      type: "BlockStatement",
       body: null,
       start,
       end,
@@ -2408,7 +2421,7 @@ function deserializeArrowFunctionExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ArrowFunctionExpression',
+      type: "ArrowFunctionExpression",
       expression,
       async: deserializeBool(pos + 45),
       typeParameters: null,
@@ -2431,7 +2444,6 @@ function deserializeArrowFunctionExpression(pos) {
   node.params = deserializeBoxFormalParameters(pos + 16);
   node.returnType = deserializeOptionBoxTSTypeAnnotation(pos + 24);
   node.body = body;
-  node.id = null;
   node.generator = false;
   parent = previousParent;
   return node;
@@ -2443,7 +2455,7 @@ function deserializeYieldExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'YieldExpression',
+      type: "YieldExpression",
       delegate: deserializeBool(pos + 24),
       argument: null,
       start,
@@ -2491,9 +2503,9 @@ function deserializeClass(pos) {
 function deserializeClassType(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'ClassDeclaration';
+      return "ClassDeclaration";
     case 1:
-      return 'ClassExpression';
+      return "ClassExpression";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for ClassType`);
   }
@@ -2505,7 +2517,7 @@ function deserializeClassBody(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ClassBody',
+      type: "ClassBody",
       body: null,
       start,
       end,
@@ -2565,9 +2577,9 @@ function deserializeMethodDefinition(pos) {
 function deserializeMethodDefinitionType(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'MethodDefinition';
+      return "MethodDefinition";
     case 1:
-      return 'TSAbstractMethodDefinition';
+      return "TSAbstractMethodDefinition";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for MethodDefinitionType`);
   }
@@ -2608,9 +2620,9 @@ function deserializePropertyDefinition(pos) {
 function deserializePropertyDefinitionType(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'PropertyDefinition';
+      return "PropertyDefinition";
     case 1:
-      return 'TSAbstractPropertyDefinition';
+      return "TSAbstractPropertyDefinition";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for PropertyDefinitionType`);
   }
@@ -2619,13 +2631,13 @@ function deserializePropertyDefinitionType(pos) {
 function deserializeMethodDefinitionKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'constructor';
+      return "constructor";
     case 1:
-      return 'method';
+      return "method";
     case 2:
-      return 'get';
+      return "get";
     case 3:
-      return 'set';
+      return "set";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for MethodDefinitionKind`);
   }
@@ -2636,7 +2648,7 @@ function deserializePrivateIdentifier(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'PrivateIdentifier',
+    type: "PrivateIdentifier",
     name: deserializeStr(pos + 8),
     start,
     end,
@@ -2651,7 +2663,7 @@ function deserializeStaticBlock(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'StaticBlock',
+      type: "StaticBlock",
       body: null,
       start,
       end,
@@ -2666,9 +2678,9 @@ function deserializeStaticBlock(pos) {
 function deserializeAccessorPropertyType(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'AccessorProperty';
+      return "AccessorProperty";
     case 1:
-      return 'TSAbstractAccessorProperty';
+      return "TSAbstractAccessorProperty";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for AccessorPropertyType`);
   }
@@ -2715,7 +2727,7 @@ function deserializeImportExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportExpression',
+      type: "ImportExpression",
       source: null,
       options: null,
       phase: deserializeOptionImportPhase(pos + 40),
@@ -2736,7 +2748,7 @@ function deserializeImportDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportDeclaration',
+      type: "ImportDeclaration",
       specifiers: null,
       source: null,
       phase: deserializeOptionImportPhase(pos + 88),
@@ -2760,9 +2772,9 @@ function deserializeImportDeclaration(pos) {
 function deserializeImportPhase(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'source';
+      return "source";
     case 1:
-      return 'defer';
+      return "defer";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for ImportPhase`);
   }
@@ -2787,7 +2799,7 @@ function deserializeImportSpecifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportSpecifier',
+      type: "ImportSpecifier",
       imported: null,
       local: null,
       importKind: deserializeImportOrExportKind(pos + 96),
@@ -2808,7 +2820,7 @@ function deserializeImportDefaultSpecifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportDefaultSpecifier',
+      type: "ImportDefaultSpecifier",
       local: null,
       start,
       end,
@@ -2826,7 +2838,7 @@ function deserializeImportNamespaceSpecifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportNamespaceSpecifier',
+      type: "ImportNamespaceSpecifier",
       local: null,
       start,
       end,
@@ -2848,7 +2860,7 @@ function deserializeImportAttribute(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ImportAttribute',
+      type: "ImportAttribute",
       key: null,
       value: null,
       start,
@@ -2879,7 +2891,7 @@ function deserializeExportNamedDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExportNamedDeclaration',
+      type: "ExportNamedDeclaration",
       declaration: null,
       specifiers: null,
       source: null,
@@ -2905,7 +2917,7 @@ function deserializeExportDefaultDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExportDefaultDeclaration',
+      type: "ExportDefaultDeclaration",
       declaration: null,
       exportKind: null,
       start,
@@ -2914,7 +2926,7 @@ function deserializeExportDefaultDeclaration(pos) {
       parent,
     });
   node.declaration = deserializeExportDefaultDeclarationKind(pos + 8);
-  node.exportKind = 'value';
+  node.exportKind = "value";
   parent = previousParent;
   return node;
 }
@@ -2925,7 +2937,7 @@ function deserializeExportAllDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExportAllDeclaration',
+      type: "ExportAllDeclaration",
       exported: null,
       source: null,
       attributes: null,
@@ -2949,7 +2961,7 @@ function deserializeExportSpecifier(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'ExportSpecifier',
+      type: "ExportSpecifier",
       local: null,
       exported: null,
       exportKind: deserializeImportOrExportKind(pos + 120),
@@ -3082,7 +3094,7 @@ function deserializeV8IntrinsicExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'V8IntrinsicExpression',
+      type: "V8IntrinsicExpression",
       name: null,
       arguments: null,
       start,
@@ -3103,7 +3115,7 @@ function deserializeBooleanLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Literal',
+      type: "Literal",
       value,
       raw: null,
       start,
@@ -3111,7 +3123,7 @@ function deserializeBooleanLiteral(pos) {
       range: [start, end],
       parent,
     });
-  node.raw = start === 0 && end === 0 ? null : value + '';
+  node.raw = start === 0 && end === 0 ? null : value + "";
   parent = previousParent;
   return node;
 }
@@ -3122,7 +3134,7 @@ function deserializeNullLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Literal',
+      type: "Literal",
       value: null,
       raw: null,
       start,
@@ -3130,8 +3142,7 @@ function deserializeNullLiteral(pos) {
       range: [start, end],
       parent,
     });
-  node.value = null;
-  node.raw = start === 0 && end === 0 ? null : 'null';
+  node.raw = start === 0 && end === 0 ? null : "null";
   parent = previousParent;
   return node;
 }
@@ -3141,7 +3152,7 @@ function deserializeNumericLiteral(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'Literal',
+    type: "Literal",
     value: deserializeF64(pos + 8),
     raw: deserializeOptionStr(pos + 16),
     start,
@@ -3157,7 +3168,7 @@ function deserializeStringLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Literal',
+      type: "Literal",
       value: null,
       raw: deserializeOptionStr(pos + 24),
       start,
@@ -3179,7 +3190,7 @@ function deserializeBigIntLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Literal',
+      type: "Literal",
       value: null,
       raw: deserializeOptionStr(pos + 24),
       bigint: null,
@@ -3201,7 +3212,7 @@ function deserializeRegExpLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Literal',
+      type: "Literal",
       value: null,
       raw: deserializeOptionStr(pos + 40),
       regex: null,
@@ -3230,16 +3241,16 @@ function deserializeRegExp(pos) {
 
 function deserializeRegExpFlags(pos) {
   let flagBits = deserializeU8(pos),
-    flags = '';
+    flags = "";
   // Alphabetical order
-  flagBits & 64 && (flags += 'd');
-  flagBits & 1 && (flags += 'g');
-  flagBits & 2 && (flags += 'i');
-  flagBits & 4 && (flags += 'm');
-  flagBits & 8 && (flags += 's');
-  flagBits & 16 && (flags += 'u');
-  flagBits & 128 && (flags += 'v');
-  flagBits & 32 && (flags += 'y');
+  flagBits & 64 && (flags += "d");
+  flagBits & 1 && (flags += "g");
+  flagBits & 2 && (flags += "i");
+  flagBits & 4 && (flags += "m");
+  flagBits & 8 && (flags += "s");
+  flagBits & 16 && (flags += "u");
+  flagBits & 128 && (flags += "v");
+  flagBits & 32 && (flags += "y");
   return flags;
 }
 
@@ -3249,7 +3260,7 @@ function deserializeJSXElement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXElement',
+      type: "JSXElement",
       openingElement: null,
       children: null,
       closingElement: null,
@@ -3274,7 +3285,7 @@ function deserializeJSXOpeningElement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXOpeningElement',
+      type: "JSXOpeningElement",
       name: null,
       typeArguments: null,
       attributes: null,
@@ -3298,7 +3309,7 @@ function deserializeJSXClosingElement(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXClosingElement',
+      type: "JSXClosingElement",
       name: null,
       start,
       end,
@@ -3316,7 +3327,7 @@ function deserializeJSXFragment(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXFragment',
+      type: "JSXFragment",
       openingFragment: null,
       children: null,
       closingFragment: null,
@@ -3338,7 +3349,7 @@ function deserializeJSXOpeningFragment(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXOpeningFragment',
+      type: "JSXOpeningFragment",
       start,
       end,
       range: [start, end],
@@ -3353,7 +3364,7 @@ function deserializeJSXClosingFragment(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'JSXClosingFragment',
+    type: "JSXClosingFragment",
     start,
     end,
     range: [start, end],
@@ -3369,7 +3380,7 @@ function deserializeJSXElementName(pos) {
       let ident = deserializeBoxIdentifierReference(pos + 8);
       return {
         __proto__: NodeProto,
-        type: 'JSXIdentifier',
+        type: "JSXIdentifier",
         name: ident.name,
         start: ident.start,
         end: ident.end,
@@ -3384,8 +3395,8 @@ function deserializeJSXElementName(pos) {
       let thisExpr = deserializeBoxThisExpression(pos + 8);
       return {
         __proto__: NodeProto,
-        type: 'JSXIdentifier',
-        name: 'this',
+        type: "JSXIdentifier",
+        name: "this",
         start: thisExpr.start,
         end: thisExpr.end,
         range: thisExpr.range,
@@ -3402,7 +3413,7 @@ function deserializeJSXNamespacedName(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXNamespacedName',
+      type: "JSXNamespacedName",
       namespace: null,
       name: null,
       start,
@@ -3422,7 +3433,7 @@ function deserializeJSXMemberExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXMemberExpression',
+      type: "JSXMemberExpression",
       object: null,
       property: null,
       start,
@@ -3442,7 +3453,7 @@ function deserializeJSXMemberExpressionObject(pos) {
       let ident = deserializeBoxIdentifierReference(pos + 8);
       return {
         __proto__: NodeProto,
-        type: 'JSXIdentifier',
+        type: "JSXIdentifier",
         name: ident.name,
         start: ident.start,
         end: ident.end,
@@ -3455,8 +3466,8 @@ function deserializeJSXMemberExpressionObject(pos) {
       let thisExpr = deserializeBoxThisExpression(pos + 8);
       return {
         __proto__: NodeProto,
-        type: 'JSXIdentifier',
-        name: 'this',
+        type: "JSXIdentifier",
+        name: "this",
         start: thisExpr.start,
         end: thisExpr.end,
         range: thisExpr.range,
@@ -3473,7 +3484,7 @@ function deserializeJSXExpressionContainer(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXExpressionContainer',
+      type: "JSXExpressionContainer",
       expression: null,
       start,
       end,
@@ -3585,7 +3596,7 @@ function deserializeJSXEmptyExpression(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'JSXEmptyExpression',
+    type: "JSXEmptyExpression",
     start,
     end,
     range: [start, end],
@@ -3610,7 +3621,7 @@ function deserializeJSXAttribute(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXAttribute',
+      type: "JSXAttribute",
       name: null,
       value: null,
       start,
@@ -3630,7 +3641,7 @@ function deserializeJSXSpreadAttribute(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXSpreadAttribute',
+      type: "JSXSpreadAttribute",
       argument: null,
       start,
       end,
@@ -3673,7 +3684,7 @@ function deserializeJSXIdentifier(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'JSXIdentifier',
+    type: "JSXIdentifier",
     name: deserializeStr(pos + 8),
     start,
     end,
@@ -3705,7 +3716,7 @@ function deserializeJSXSpreadChild(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'JSXSpreadChild',
+      type: "JSXSpreadChild",
       expression: null,
       start,
       end,
@@ -3722,7 +3733,7 @@ function deserializeJSXText(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'JSXText',
+    type: "JSXText",
     value: deserializeStr(pos + 8),
     raw: deserializeOptionStr(pos + 24),
     start,
@@ -3738,7 +3749,7 @@ function deserializeTSThisParameter(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: null,
       optional: null,
@@ -3749,7 +3760,7 @@ function deserializeTSThisParameter(pos) {
       parent,
     });
   node.decorators = [];
-  node.name = 'this';
+  node.name = "this";
   node.optional = false;
   node.typeAnnotation = deserializeOptionBoxTSTypeAnnotation(pos + 16);
   parent = previousParent;
@@ -3762,7 +3773,7 @@ function deserializeTSEnumDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSEnumDeclaration',
+      type: "TSEnumDeclaration",
       id: null,
       body: null,
       const: deserializeBool(pos + 76),
@@ -3784,7 +3795,7 @@ function deserializeTSEnumBody(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSEnumBody',
+      type: "TSEnumBody",
       members: null,
       start,
       end,
@@ -3802,7 +3813,7 @@ function deserializeTSEnumMember(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSEnumMember',
+      type: "TSEnumMember",
       id: null,
       initializer: null,
       computed: null,
@@ -3839,7 +3850,7 @@ function deserializeTSTypeAnnotation(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeAnnotation',
+      type: "TSTypeAnnotation",
       typeAnnotation: null,
       start,
       end,
@@ -3857,7 +3868,7 @@ function deserializeTSLiteralType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSLiteralType',
+      type: "TSLiteralType",
       literal: null,
       start,
       end,
@@ -3975,7 +3986,7 @@ function deserializeTSConditionalType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSConditionalType',
+      type: "TSConditionalType",
       checkType: null,
       extendsType: null,
       trueType: null,
@@ -3999,7 +4010,7 @@ function deserializeTSUnionType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSUnionType',
+      type: "TSUnionType",
       types: null,
       start,
       end,
@@ -4017,7 +4028,7 @@ function deserializeTSIntersectionType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSIntersectionType',
+      type: "TSIntersectionType",
       types: null,
       start,
       end,
@@ -4041,7 +4052,7 @@ function deserializeTSTypeOperator(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeOperator',
+      type: "TSTypeOperator",
       operator: deserializeTSTypeOperatorOperator(pos + 24),
       typeAnnotation: null,
       start,
@@ -4057,11 +4068,11 @@ function deserializeTSTypeOperator(pos) {
 function deserializeTSTypeOperatorOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'keyof';
+      return "keyof";
     case 1:
-      return 'unique';
+      return "unique";
     case 2:
-      return 'readonly';
+      return "readonly";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for TSTypeOperatorOperator`);
   }
@@ -4073,7 +4084,7 @@ function deserializeTSArrayType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSArrayType',
+      type: "TSArrayType",
       elementType: null,
       start,
       end,
@@ -4091,7 +4102,7 @@ function deserializeTSIndexedAccessType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSIndexedAccessType',
+      type: "TSIndexedAccessType",
       objectType: null,
       indexType: null,
       start,
@@ -4111,7 +4122,7 @@ function deserializeTSTupleType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTupleType',
+      type: "TSTupleType",
       elementTypes: null,
       start,
       end,
@@ -4129,7 +4140,7 @@ function deserializeTSNamedTupleMember(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSNamedTupleMember',
+      type: "TSNamedTupleMember",
       label: null,
       elementType: null,
       optional: deserializeBool(pos + 48),
@@ -4150,7 +4161,7 @@ function deserializeTSOptionalType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSOptionalType',
+      type: "TSOptionalType",
       typeAnnotation: null,
       start,
       end,
@@ -4168,7 +4179,7 @@ function deserializeTSRestType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSRestType',
+      type: "TSRestType",
       typeAnnotation: null,
       start,
       end,
@@ -4270,7 +4281,7 @@ function deserializeTSAnyKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSAnyKeyword',
+    type: "TSAnyKeyword",
     start,
     end,
     range: [start, end],
@@ -4283,7 +4294,7 @@ function deserializeTSStringKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSStringKeyword',
+    type: "TSStringKeyword",
     start,
     end,
     range: [start, end],
@@ -4296,7 +4307,7 @@ function deserializeTSBooleanKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSBooleanKeyword',
+    type: "TSBooleanKeyword",
     start,
     end,
     range: [start, end],
@@ -4309,7 +4320,7 @@ function deserializeTSNumberKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSNumberKeyword',
+    type: "TSNumberKeyword",
     start,
     end,
     range: [start, end],
@@ -4322,7 +4333,7 @@ function deserializeTSNeverKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSNeverKeyword',
+    type: "TSNeverKeyword",
     start,
     end,
     range: [start, end],
@@ -4335,7 +4346,7 @@ function deserializeTSIntrinsicKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSIntrinsicKeyword',
+    type: "TSIntrinsicKeyword",
     start,
     end,
     range: [start, end],
@@ -4348,7 +4359,7 @@ function deserializeTSUnknownKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSUnknownKeyword',
+    type: "TSUnknownKeyword",
     start,
     end,
     range: [start, end],
@@ -4361,7 +4372,7 @@ function deserializeTSNullKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSNullKeyword',
+    type: "TSNullKeyword",
     start,
     end,
     range: [start, end],
@@ -4374,7 +4385,7 @@ function deserializeTSUndefinedKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSUndefinedKeyword',
+    type: "TSUndefinedKeyword",
     start,
     end,
     range: [start, end],
@@ -4387,7 +4398,7 @@ function deserializeTSVoidKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSVoidKeyword',
+    type: "TSVoidKeyword",
     start,
     end,
     range: [start, end],
@@ -4400,7 +4411,7 @@ function deserializeTSSymbolKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSSymbolKeyword',
+    type: "TSSymbolKeyword",
     start,
     end,
     range: [start, end],
@@ -4413,7 +4424,7 @@ function deserializeTSThisType(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSThisType',
+    type: "TSThisType",
     start,
     end,
     range: [start, end],
@@ -4426,7 +4437,7 @@ function deserializeTSObjectKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSObjectKeyword',
+    type: "TSObjectKeyword",
     start,
     end,
     range: [start, end],
@@ -4439,7 +4450,7 @@ function deserializeTSBigIntKeyword(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSBigIntKeyword',
+    type: "TSBigIntKeyword",
     start,
     end,
     range: [start, end],
@@ -4453,7 +4464,7 @@ function deserializeTSTypeReference(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeReference',
+      type: "TSTypeReference",
       typeName: null,
       typeArguments: null,
       start,
@@ -4486,7 +4497,7 @@ function deserializeTSQualifiedName(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSQualifiedName',
+      type: "TSQualifiedName",
       left: null,
       right: null,
       start,
@@ -4506,7 +4517,7 @@ function deserializeTSTypeParameterInstantiation(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeParameterInstantiation',
+      type: "TSTypeParameterInstantiation",
       params: null,
       start,
       end,
@@ -4524,7 +4535,7 @@ function deserializeTSTypeParameter(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeParameter',
+      type: "TSTypeParameter",
       name: null,
       constraint: null,
       default: null,
@@ -4549,7 +4560,7 @@ function deserializeTSTypeParameterDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeParameterDeclaration',
+      type: "TSTypeParameterDeclaration",
       params: null,
       start,
       end,
@@ -4567,7 +4578,7 @@ function deserializeTSTypeAliasDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeAliasDeclaration',
+      type: "TSTypeAliasDeclaration",
       id: null,
       typeParameters: null,
       typeAnnotation: null,
@@ -4587,11 +4598,11 @@ function deserializeTSTypeAliasDeclaration(pos) {
 function deserializeTSAccessibility(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'private';
+      return "private";
     case 1:
-      return 'protected';
+      return "protected";
     case 2:
-      return 'public';
+      return "public";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for TSAccessibility`);
   }
@@ -4603,7 +4614,7 @@ function deserializeTSClassImplements(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSClassImplements',
+      type: "TSClassImplements",
       expression: null,
       typeArguments: null,
       start,
@@ -4612,14 +4623,14 @@ function deserializeTSClassImplements(pos) {
       parent,
     }),
     expression = deserializeTSTypeName(pos + 8);
-  if (expression.type === 'TSQualifiedName') {
+  if (expression.type === "TSQualifiedName") {
     let object = expression.left,
       { right } = expression,
       start,
       end,
       previous = (expression = {
         __proto__: NodeProto,
-        type: 'MemberExpression',
+        type: "MemberExpression",
         object,
         property: right,
         optional: false,
@@ -4631,14 +4642,14 @@ function deserializeTSClassImplements(pos) {
       });
     right.parent = previous;
     for (;;) {
-      if (object.type !== 'TSQualifiedName') {
+      if (object.type !== "TSQualifiedName") {
         object.parent = previous;
         break;
       }
       let { left, right } = object;
       previous = previous.object = {
         __proto__: NodeProto,
-        type: 'MemberExpression',
+        type: "MemberExpression",
         object: left,
         property: right,
         optional: false,
@@ -4664,7 +4675,7 @@ function deserializeTSInterfaceDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSInterfaceDeclaration',
+      type: "TSInterfaceDeclaration",
       id: null,
       typeParameters: null,
       extends: null,
@@ -4689,7 +4700,7 @@ function deserializeTSInterfaceBody(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSInterfaceBody',
+      type: "TSInterfaceBody",
       body: null,
       start,
       end,
@@ -4707,7 +4718,7 @@ function deserializeTSPropertySignature(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSPropertySignature',
+      type: "TSPropertySignature",
       computed: deserializeBool(pos + 32),
       optional: deserializeBool(pos + 33),
       readonly: deserializeBool(pos + 34),
@@ -4722,7 +4733,6 @@ function deserializeTSPropertySignature(pos) {
     });
   node.key = deserializePropertyKey(pos + 8);
   node.typeAnnotation = deserializeOptionBoxTSTypeAnnotation(pos + 24);
-  node.accessibility = null;
   node.static = false;
   parent = previousParent;
   return node;
@@ -4751,7 +4761,7 @@ function deserializeTSIndexSignature(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSIndexSignature',
+      type: "TSIndexSignature",
       parameters: null,
       typeAnnotation: null,
       readonly: deserializeBool(pos + 40),
@@ -4764,7 +4774,6 @@ function deserializeTSIndexSignature(pos) {
     });
   node.parameters = deserializeVecTSIndexSignatureName(pos + 8);
   node.typeAnnotation = deserializeBoxTSTypeAnnotation(pos + 32);
-  node.accessibility = null;
   parent = previousParent;
   return node;
 }
@@ -4775,7 +4784,7 @@ function deserializeTSCallSignatureDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSCallSignatureDeclaration',
+      type: "TSCallSignatureDeclaration",
       typeParameters: null,
       params: null,
       returnType: null,
@@ -4797,11 +4806,11 @@ function deserializeTSCallSignatureDeclaration(pos) {
 function deserializeTSMethodSignatureKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'method';
+      return "method";
     case 1:
-      return 'get';
+      return "get";
     case 2:
-      return 'set';
+      return "set";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for TSMethodSignatureKind`);
   }
@@ -4813,7 +4822,7 @@ function deserializeTSMethodSignature(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSMethodSignature',
+      type: "TSMethodSignature",
       key: null,
       computed: deserializeBool(pos + 60),
       optional: deserializeBool(pos + 61),
@@ -4836,7 +4845,6 @@ function deserializeTSMethodSignature(pos) {
   node.typeParameters = deserializeOptionBoxTSTypeParameterDeclaration(pos + 24);
   node.params = params;
   node.returnType = deserializeOptionBoxTSTypeAnnotation(pos + 48);
-  node.accessibility = null;
   node.readonly = false;
   node.static = false;
   parent = previousParent;
@@ -4849,7 +4857,7 @@ function deserializeTSConstructSignatureDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSConstructSignatureDeclaration',
+      type: "TSConstructSignatureDeclaration",
       typeParameters: null,
       params: null,
       returnType: null,
@@ -4871,7 +4879,7 @@ function deserializeTSIndexSignatureName(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Identifier',
+      type: "Identifier",
       decorators: null,
       name: deserializeStr(pos + 8),
       optional: null,
@@ -4894,7 +4902,7 @@ function deserializeTSInterfaceHeritage(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSInterfaceHeritage',
+      type: "TSInterfaceHeritage",
       expression: null,
       typeArguments: null,
       start,
@@ -4914,7 +4922,7 @@ function deserializeTSTypePredicate(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypePredicate',
+      type: "TSTypePredicate",
       parameterName: null,
       asserts: deserializeBool(pos + 32),
       typeAnnotation: null,
@@ -4942,7 +4950,6 @@ function deserializeTSTypePredicateName(pos) {
 
 function deserializeTSModuleDeclaration(pos) {
   let kind = deserializeTSModuleDeclarationKind(pos + 84),
-    global = kind === 'global',
     start = deserializeU32(pos),
     end = deserializeU32(pos + 4),
     declare = deserializeBool(pos + 85),
@@ -4952,11 +4959,11 @@ function deserializeTSModuleDeclaration(pos) {
   if (body === null) {
     node = parent = {
       __proto__: NodeProto,
-      type: 'TSModuleDeclaration',
+      type: "TSModuleDeclaration",
       id: null,
       kind,
       declare,
-      global,
+      global: false,
       start,
       end,
       range: [start, end],
@@ -4966,39 +4973,40 @@ function deserializeTSModuleDeclaration(pos) {
   } else {
     node = parent = {
       __proto__: NodeProto,
-      type: 'TSModuleDeclaration',
+      type: "TSModuleDeclaration",
       id: null,
       body,
       kind,
       declare,
-      global,
+      global: false,
       start,
       end,
       range: [start, end],
       parent,
     };
     let id = deserializeTSModuleDeclarationName(pos + 8);
-    if (body.type === 'TSModuleBlock') {
+    if (body.type === "TSModuleBlock") {
       node.id = id;
       body.parent = node;
     } else {
       let innerId = body.id;
-      if (innerId.type === 'Identifier') {
-        let start, end;
-        id.parent =
-          innerId.parent =
-          node.id =
-          parent =
-            {
-              __proto__: NodeProto,
-              type: 'TSQualifiedName',
-              left: id,
-              right: innerId,
-              start: (start = id.start),
-              end: (end = innerId.end),
-              range: [start, end],
-              parent: node,
-            };
+      if (innerId.type === "Identifier") {
+        let start,
+          end,
+          outerId =
+            (node.id =
+            parent =
+              {
+                __proto__: NodeProto,
+                type: "TSQualifiedName",
+                left: id,
+                right: innerId,
+                start: (start = id.start),
+                end: (end = innerId.end),
+                range: [start, end],
+                parent: node,
+              });
+        id.parent = innerId.parent = outerId;
       } else {
         // Replace `left` of innermost `TSQualifiedName` with a nested `TSQualifiedName` with `id` of
         // this module on left, and previous `left` of innermost `TSQualifiedName` on right
@@ -5007,7 +5015,7 @@ function deserializeTSModuleDeclaration(pos) {
         let { start } = id;
         for (;;) {
           innerId.start = innerId.range[0] = start;
-          if (innerId.left.type === 'Identifier') break;
+          if (innerId.left.type === "Identifier") break;
           innerId = innerId.left;
         }
         let end,
@@ -5017,7 +5025,7 @@ function deserializeTSModuleDeclaration(pos) {
           innerId.left =
             {
               __proto__: NodeProto,
-              type: 'TSQualifiedName',
+              type: "TSQualifiedName",
               left: id,
               right,
               start,
@@ -5026,7 +5034,7 @@ function deserializeTSModuleDeclaration(pos) {
               parent: innerId,
             };
       }
-      if (Object.hasOwn(body, 'body')) {
+      if (Object.hasOwn(body, "body")) {
         body = body.body;
         node.body = body;
         body.parent = node;
@@ -5040,11 +5048,9 @@ function deserializeTSModuleDeclaration(pos) {
 function deserializeTSModuleDeclarationKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'global';
+      return "module";
     case 1:
-      return 'module';
-    case 2:
-      return 'namespace';
+      return "namespace";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for TSModuleDeclarationKind`);
   }
@@ -5072,13 +5078,51 @@ function deserializeTSModuleDeclarationBody(pos) {
   }
 }
 
+function deserializeTSGlobalDeclaration(pos) {
+  let start = deserializeU32(pos),
+    end = deserializeU32(pos + 4),
+    previousParent = parent,
+    node = (parent = {
+      __proto__: NodeProto,
+      type: "TSModuleDeclaration",
+      id: null,
+      body: null,
+      kind: null,
+      declare: deserializeBool(pos + 76),
+      global: null,
+      start,
+      end,
+      range: [start, end],
+      parent,
+    }),
+    keywordStart,
+    keywordEnd;
+  node.id = {
+    __proto__: NodeProto,
+    type: "Identifier",
+    decorators: [],
+    name: "global",
+    optional: false,
+    typeAnnotation: null,
+    start: (keywordStart = deserializeU32(pos + 8)),
+    end: (keywordEnd = deserializeU32(pos + 12)),
+    range: [keywordStart, keywordEnd],
+    parent,
+  };
+  node.body = deserializeTSModuleBlock(pos + 16);
+  node.kind = "global";
+  node.global = true;
+  parent = previousParent;
+  return node;
+}
+
 function deserializeTSModuleBlock(pos) {
   let start = deserializeU32(pos),
     end = deserializeU32(pos + 4),
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSModuleBlock',
+      type: "TSModuleBlock",
       body: null,
       start,
       end,
@@ -5098,7 +5142,7 @@ function deserializeTSTypeLiteral(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeLiteral',
+      type: "TSTypeLiteral",
       members: null,
       start,
       end,
@@ -5116,7 +5160,7 @@ function deserializeTSInferType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSInferType',
+      type: "TSInferType",
       typeParameter: null,
       start,
       end,
@@ -5134,7 +5178,7 @@ function deserializeTSTypeQuery(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeQuery',
+      type: "TSTypeQuery",
       exprName: null,
       typeArguments: null,
       start,
@@ -5169,8 +5213,8 @@ function deserializeTSImportType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSImportType',
-      argument: null,
+      type: "TSImportType",
+      source: null,
       options: null,
       qualifier: null,
       typeArguments: null,
@@ -5179,10 +5223,10 @@ function deserializeTSImportType(pos) {
       range: [start, end],
       parent,
     });
-  node.argument = deserializeTSType(pos + 8);
-  node.options = deserializeOptionBoxObjectExpression(pos + 24);
-  node.qualifier = deserializeOptionTSImportTypeQualifier(pos + 32);
-  node.typeArguments = deserializeOptionBoxTSTypeParameterInstantiation(pos + 48);
+  node.source = deserializeStringLiteral(pos + 8);
+  node.options = deserializeOptionBoxObjectExpression(pos + 56);
+  node.qualifier = deserializeOptionTSImportTypeQualifier(pos + 64);
+  node.typeArguments = deserializeOptionBoxTSTypeParameterInstantiation(pos + 80);
   parent = previousParent;
   return node;
 }
@@ -5204,7 +5248,7 @@ function deserializeTSImportTypeQualifiedName(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSQualifiedName',
+      type: "TSQualifiedName",
       left: null,
       right: null,
       start,
@@ -5224,7 +5268,7 @@ function deserializeTSFunctionType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSFunctionType',
+      type: "TSFunctionType",
       typeParameters: null,
       params: null,
       returnType: null,
@@ -5249,7 +5293,7 @@ function deserializeTSConstructorType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSConstructorType',
+      type: "TSConstructorType",
       abstract: deserializeBool(pos + 36),
       typeParameters: null,
       params: null,
@@ -5272,7 +5316,7 @@ function deserializeTSMappedType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSMappedType',
+      type: "TSMappedType",
       key: null,
       constraint: null,
       nameType: null,
@@ -5305,9 +5349,9 @@ function deserializeTSMappedTypeModifierOperator(pos) {
     case 0:
       return true;
     case 1:
-      return '+';
+      return "+";
     case 2:
-      return '-';
+      return "-";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for TSMappedTypeModifierOperator`);
   }
@@ -5319,7 +5363,7 @@ function deserializeTSTemplateLiteralType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTemplateLiteralType',
+      type: "TSTemplateLiteralType",
       quasis: null,
       types: null,
       start,
@@ -5339,7 +5383,7 @@ function deserializeTSAsExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSAsExpression',
+      type: "TSAsExpression",
       expression: null,
       typeAnnotation: null,
       start,
@@ -5359,7 +5403,7 @@ function deserializeTSSatisfiesExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSSatisfiesExpression',
+      type: "TSSatisfiesExpression",
       expression: null,
       typeAnnotation: null,
       start,
@@ -5379,7 +5423,7 @@ function deserializeTSTypeAssertion(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSTypeAssertion',
+      type: "TSTypeAssertion",
       typeAnnotation: null,
       expression: null,
       start,
@@ -5399,7 +5443,7 @@ function deserializeTSImportEqualsDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSImportEqualsDeclaration',
+      type: "TSImportEqualsDeclaration",
       id: null,
       moduleReference: null,
       importKind: deserializeImportOrExportKind(pos + 56),
@@ -5435,7 +5479,7 @@ function deserializeTSExternalModuleReference(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSExternalModuleReference',
+      type: "TSExternalModuleReference",
       expression: null,
       start,
       end,
@@ -5453,7 +5497,7 @@ function deserializeTSNonNullExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSNonNullExpression',
+      type: "TSNonNullExpression",
       expression: null,
       start,
       end,
@@ -5471,7 +5515,7 @@ function deserializeDecorator(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'Decorator',
+      type: "Decorator",
       expression: null,
       start,
       end,
@@ -5489,7 +5533,7 @@ function deserializeTSExportAssignment(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSExportAssignment',
+      type: "TSExportAssignment",
       expression: null,
       start,
       end,
@@ -5507,7 +5551,7 @@ function deserializeTSNamespaceExportDeclaration(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSNamespaceExportDeclaration',
+      type: "TSNamespaceExportDeclaration",
       id: null,
       start,
       end,
@@ -5525,7 +5569,7 @@ function deserializeTSInstantiationExpression(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSInstantiationExpression',
+      type: "TSInstantiationExpression",
       expression: null,
       typeArguments: null,
       start,
@@ -5542,9 +5586,9 @@ function deserializeTSInstantiationExpression(pos) {
 function deserializeImportOrExportKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'value';
+      return "value";
     case 1:
-      return 'type';
+      return "type";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for ImportOrExportKind`);
   }
@@ -5556,7 +5600,7 @@ function deserializeJSDocNullableType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSJSDocNullableType',
+      type: "TSJSDocNullableType",
       typeAnnotation: null,
       postfix: deserializeBool(pos + 24),
       start,
@@ -5575,7 +5619,7 @@ function deserializeJSDocNonNullableType(pos) {
     previousParent = parent,
     node = (parent = {
       __proto__: NodeProto,
-      type: 'TSJSDocNonNullableType',
+      type: "TSJSDocNonNullableType",
       typeAnnotation: null,
       postfix: deserializeBool(pos + 24),
       start,
@@ -5593,7 +5637,7 @@ function deserializeJSDocUnknownType(pos) {
     end = deserializeU32(pos + 4);
   return {
     __proto__: NodeProto,
-    type: 'TSJSDocUnknownType',
+    type: "TSJSDocUnknownType",
     start,
     end,
     range: [start, end],
@@ -5604,9 +5648,9 @@ function deserializeJSDocUnknownType(pos) {
 function deserializeCommentKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'Line';
+      return "Line";
     case 1:
-      return 'Block';
+      return "Block";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for CommentKind`);
   }
@@ -5619,7 +5663,7 @@ function deserializeComment(pos) {
   return {
     __proto__: NodeProto,
     type,
-    value: sourceText.slice(start + 2, end - (type === 'Line' ? 0 : 2)),
+    value: sourceText.slice(start + 2, end - (type === "Line" ? 0 : 2)),
     start,
     end,
     range: [start, end],
@@ -5629,37 +5673,37 @@ function deserializeComment(pos) {
 function deserializeAssignmentOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return '=';
+      return "=";
     case 1:
-      return '+=';
+      return "+=";
     case 2:
-      return '-=';
+      return "-=";
     case 3:
-      return '*=';
+      return "*=";
     case 4:
-      return '/=';
+      return "/=";
     case 5:
-      return '%=';
+      return "%=";
     case 6:
-      return '**=';
+      return "**=";
     case 7:
-      return '<<=';
+      return "<<=";
     case 8:
-      return '>>=';
+      return ">>=";
     case 9:
-      return '>>>=';
+      return ">>>=";
     case 10:
-      return '|=';
+      return "|=";
     case 11:
-      return '^=';
+      return "^=";
     case 12:
-      return '&=';
+      return "&=";
     case 13:
-      return '||=';
+      return "||=";
     case 14:
-      return '&&=';
+      return "&&=";
     case 15:
-      return '??=';
+      return "??=";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for AssignmentOperator`);
   }
@@ -5668,49 +5712,49 @@ function deserializeAssignmentOperator(pos) {
 function deserializeBinaryOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return '==';
+      return "==";
     case 1:
-      return '!=';
+      return "!=";
     case 2:
-      return '===';
+      return "===";
     case 3:
-      return '!==';
+      return "!==";
     case 4:
-      return '<';
+      return "<";
     case 5:
-      return '<=';
+      return "<=";
     case 6:
-      return '>';
+      return ">";
     case 7:
-      return '>=';
+      return ">=";
     case 8:
-      return '+';
+      return "+";
     case 9:
-      return '-';
+      return "-";
     case 10:
-      return '*';
+      return "*";
     case 11:
-      return '/';
+      return "/";
     case 12:
-      return '%';
+      return "%";
     case 13:
-      return '**';
+      return "**";
     case 14:
-      return '<<';
+      return "<<";
     case 15:
-      return '>>';
+      return ">>";
     case 16:
-      return '>>>';
+      return ">>>";
     case 17:
-      return '|';
+      return "|";
     case 18:
-      return '^';
+      return "^";
     case 19:
-      return '&';
+      return "&";
     case 20:
-      return 'in';
+      return "in";
     case 21:
-      return 'instanceof';
+      return "instanceof";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for BinaryOperator`);
   }
@@ -5719,11 +5763,11 @@ function deserializeBinaryOperator(pos) {
 function deserializeLogicalOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return '||';
+      return "||";
     case 1:
-      return '&&';
+      return "&&";
     case 2:
-      return '??';
+      return "??";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for LogicalOperator`);
   }
@@ -5732,19 +5776,19 @@ function deserializeLogicalOperator(pos) {
 function deserializeUnaryOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return '+';
+      return "+";
     case 1:
-      return '-';
+      return "-";
     case 2:
-      return '!';
+      return "!";
     case 3:
-      return '~';
+      return "~";
     case 4:
-      return 'typeof';
+      return "typeof";
     case 5:
-      return 'void';
+      return "void";
     case 6:
-      return 'delete';
+      return "delete";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for UnaryOperator`);
   }
@@ -5753,9 +5797,9 @@ function deserializeUnaryOperator(pos) {
 function deserializeUpdateOperator(pos) {
   switch (uint8[pos]) {
     case 0:
-      return '++';
+      return "++";
     case 1:
-      return '--';
+      return "--";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for UpdateOperator`);
   }
@@ -5764,9 +5808,9 @@ function deserializeUpdateOperator(pos) {
 function deserializeModuleKind(pos) {
   switch (uint8[pos]) {
     case 0:
-      return 'script';
+      return "script";
     case 1:
-      return 'module';
+      return "module";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for ModuleKind`);
   }
@@ -5783,7 +5827,7 @@ function deserializeU8(pos) {
 function deserializeStr(pos) {
   let pos32 = pos >> 2,
     len = uint32[pos32 + 2];
-  if (len === 0) return '';
+  if (len === 0) return "";
   pos = uint32[pos32];
   if (sourceIsAscii && pos < sourceByteLen) return sourceText.substr(pos, len);
   // Longer strings use `TextDecoder`
@@ -5791,7 +5835,7 @@ function deserializeStr(pos) {
   let end = pos + len;
   if (len > 50) return decodeStr(uint8.subarray(pos, end));
   // Shorter strings decode by hand to avoid native call
-  let out = '',
+  let out = "",
     c;
   do {
     c = uint8[pos++];
@@ -6264,6 +6308,10 @@ function deserializeBoxTSEnumDeclaration(pos) {
 
 function deserializeBoxTSModuleDeclaration(pos) {
   return deserializeTSModuleDeclaration(uint32[pos >> 2]);
+}
+
+function deserializeBoxTSGlobalDeclaration(pos) {
+  return deserializeTSGlobalDeclaration(uint32[pos >> 2]);
 }
 
 function deserializeBoxTSImportEqualsDeclaration(pos) {

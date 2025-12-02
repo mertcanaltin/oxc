@@ -1,21 +1,32 @@
-import prettier from '@prettier/sync';
+// Import Prettier lazily.
+// This helps to reduce initial load time if embedded formatting is not needed.
+//
+// Also, this solves unknown issue described below...
+//
+// XXX: If import `prettier` directly here, it will add line like this to the output JS:
+// ```js
+// import process2 from 'process';
+// ```
+// Yes, this seems completely fine!
+// But actually, this makes `oxfmt --lsp` immediately stop with `Parse error` JSON-RPC error
+let prettierCache: typeof import("prettier");
 
 // Map template tag names to Prettier parsers
 const TAG_TO_PARSER: Record<string, string> = {
   // CSS
-  css: 'css',
-  styled: 'css',
+  css: "css",
+  styled: "css",
 
   // GraphQL
-  gql: 'graphql',
-  graphql: 'graphql',
+  gql: "graphql",
+  graphql: "graphql",
 
   // HTML
-  html: 'html',
+  html: "html",
 
   // Markdown
-  md: 'markdown',
-  markdown: 'markdown',
+  md: "markdown",
+  markdown: "markdown",
 };
 
 /**
@@ -25,7 +36,7 @@ const TAG_TO_PARSER: Record<string, string> = {
  * @param code - The code to format
  * @returns Formatted code
  */
-export function formatEmbeddedCode(tagName: string, code: string): string {
+export async function formatEmbeddedCode(tagName: string, code: string): Promise<string> {
   const parser = TAG_TO_PARSER[tagName];
 
   if (!parser) {
@@ -33,19 +44,18 @@ export function formatEmbeddedCode(tagName: string, code: string): string {
     return code;
   }
 
-  try {
-    const formatted = prettier.format(code, {
+  if (!prettierCache) {
+    prettierCache = await import("prettier");
+  }
+
+  return prettierCache
+    .format(code, {
       parser,
       printWidth: 80,
       tabWidth: 2,
       semi: true,
       singleQuote: false,
-    });
-
-    // Remove trailing newline that Prettier adds
-    return formatted.trimEnd();
-  } catch {
-    // If Prettier fails to format, return original code
-    return code;
-  }
+    })
+    .then((formatted) => formatted.trimEnd())
+    .catch(() => code);
 }

@@ -240,6 +240,7 @@ pub(crate) mod typescript {
     pub mod no_non_null_assertion;
     pub mod no_redundant_type_constituents;
     pub mod no_require_imports;
+    pub mod no_restricted_types;
     pub mod no_this_alias;
     pub mod no_unnecessary_boolean_literal_compare;
     pub mod no_unnecessary_parameter_property_assignment;
@@ -266,6 +267,7 @@ pub(crate) mod typescript {
     pub mod prefer_enum_initializers;
     pub mod prefer_for_of;
     pub mod prefer_function_type;
+    pub mod prefer_includes;
     pub mod prefer_literal_enum_member;
     pub mod prefer_namespace_keyword;
     pub mod prefer_promise_reject_errors;
@@ -380,6 +382,7 @@ pub(crate) mod react {
     pub mod require_render_return;
     pub mod rules_of_hooks;
     pub mod self_closing_comp;
+    pub mod state_in_constructor;
     pub mod style_prop_object;
     pub mod void_dom_elements_no_children;
 }
@@ -444,6 +447,7 @@ pub(crate) mod unicorn {
     pub mod no_unnecessary_slice_end;
     pub mod no_unreadable_array_destructuring;
     pub mod no_unreadable_iife;
+    pub mod no_useless_collection_argument;
     pub mod no_useless_error_capture_stack_trace;
     pub mod no_useless_fallback_in_spread;
     pub mod no_useless_length_check;
@@ -461,6 +465,7 @@ pub(crate) mod unicorn {
     pub mod prefer_array_index_of;
     pub mod prefer_array_some;
     pub mod prefer_at;
+    pub mod prefer_bigint_literals;
     pub mod prefer_blob_reading_methods;
     pub mod prefer_class_fields;
     pub mod prefer_classlist_toggle;
@@ -488,6 +493,7 @@ pub(crate) mod unicorn {
     pub mod prefer_query_selector;
     pub mod prefer_reflect_apply;
     pub mod prefer_regexp_test;
+    pub mod prefer_response_static_json;
     pub mod prefer_set_has;
     pub mod prefer_set_size;
     pub mod prefer_spread;
@@ -1053,6 +1059,7 @@ oxc_macros::declare_all_lint_rules! {
     react::require_render_return,
     react::rules_of_hooks,
     react::self_closing_comp,
+    react::state_in_constructor,
     react::style_prop_object,
     react::void_dom_elements_no_children,
     react_perf::jsx_no_jsx_as_prop,
@@ -1100,6 +1107,7 @@ oxc_macros::declare_all_lint_rules! {
     typescript::no_non_null_assertion,
     typescript::no_redundant_type_constituents,
     typescript::no_require_imports,
+    typescript::no_restricted_types,
     typescript::no_this_alias,
     typescript::no_unnecessary_boolean_literal_compare,
     typescript::no_unnecessary_parameter_property_assignment,
@@ -1126,6 +1134,7 @@ oxc_macros::declare_all_lint_rules! {
     typescript::prefer_enum_initializers,
     typescript::prefer_for_of,
     typescript::prefer_function_type,
+    typescript::prefer_includes,
     typescript::prefer_literal_enum_member,
     typescript::prefer_namespace_keyword,
     typescript::prefer_promise_reject_errors,
@@ -1158,6 +1167,7 @@ oxc_macros::declare_all_lint_rules! {
     unicorn::new_for_builtins,
     unicorn::no_unnecessary_array_splice_count,
     unicorn::no_array_callback_reference,
+    unicorn::no_useless_collection_argument,
     unicorn::no_useless_error_capture_stack_trace,
     unicorn::no_array_sort,
     unicorn::no_array_reverse,
@@ -1208,6 +1218,8 @@ oxc_macros::declare_all_lint_rules! {
     unicorn::numeric_separators_style,
     unicorn::prefer_classlist_toggle,
     unicorn::prefer_class_fields,
+    unicorn::prefer_bigint_literals,
+    unicorn::prefer_response_static_json,
     unicorn::prefer_top_level_await,
     unicorn::prefer_at,
     unicorn::prefer_global_this,

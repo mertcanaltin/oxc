@@ -68,6 +68,7 @@ mod generated {
     mod derive_get_span;
     mod derive_get_span_mut;
     mod derive_take_in;
+    mod derive_unstable_address;
     mod get_id;
 }
 
@@ -106,8 +107,6 @@ pub use crate::{
 #[cfg(target_pointer_width = "64")]
 #[test]
 fn size_asserts() {
-    use std::mem::size_of;
-
     use crate::ast;
 
     assert_eq!(size_of::<ast::Statement>(), 16);

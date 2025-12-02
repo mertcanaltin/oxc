@@ -5,8 +5,14 @@ use oxc_ast::{
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_macros::declare_oxc_lint;
 use oxc_span::{GetSpan, Span};
+use schemars::JsonSchema;
+use serde::Deserialize;
 
-use crate::{AstNode, context::LintContext, rule::Rule};
+use crate::{
+    AstNode,
+    context::LintContext,
+    rule::{DefaultRuleConfig, Rule},
+};
 
 fn no_cond_assign_diagnostic(span: Span) -> OxcDiagnostic {
     OxcDiagnostic::warn("Expected a conditional expression and instead saw an assignment")
@@ -19,10 +25,14 @@ pub struct NoCondAssign {
     config: NoCondAssignConfig,
 }
 
-#[derive(Debug, Default, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Default, Clone, Copy, Eq, PartialEq, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
 enum NoCondAssignConfig {
+    /// Allow assignments in conditional expressions only if they are
+    /// enclosed in parentheses.
     #[default]
     ExceptParens,
+    /// Disallow all assignments in conditional expressions.
     Always,
 }
 
@@ -59,18 +69,16 @@ declare_oxc_lint!(
     /// ```
     NoCondAssign,
     eslint,
-    correctness
+    correctness,
+    config = NoCondAssignConfig,
 );
 
 impl Rule for NoCondAssign {
     fn from_configuration(value: serde_json::Value) -> Self {
-        let config = value.get(0).and_then(serde_json::Value::as_str).map_or_else(
-            NoCondAssignConfig::default,
-            |value| match value {
-                "always" => NoCondAssignConfig::Always,
-                _ => NoCondAssignConfig::ExceptParens,
-            },
-        );
+        let config = serde_json::from_value::<DefaultRuleConfig<NoCondAssignConfig>>(value)
+            .unwrap_or_default()
+            .into_inner();
+
         Self { config }
     }
 

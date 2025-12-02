@@ -125,11 +125,15 @@ export interface MangleOptionsKeepNames {
   class: boolean
 }
 
-/** Minify synchronously. */
-export declare function minify(filename: string, sourceText: string, options?: MinifyOptions | undefined | null): MinifyResult
+/**
+ * Minify asynchronously.
+ *
+ * Note: This function can be slower than `minifySync` due to the overhead of spawning a thread.
+ */
+export declare function minify(filename: string, sourceText: string, options?: MinifyOptions | undefined | null): Promise<MinifyResult>
 
 export interface MinifyOptions {
-  /** Use when minifying an ES6 module. */
+  /** Use when minifying an ES module. */
   module?: boolean
   compress?: boolean | CompressOptions
   mangle?: boolean | MangleOptions
@@ -142,6 +146,9 @@ export interface MinifyResult {
   map?: SourceMap
   errors: Array<OxcError>
 }
+
+/** Minify synchronously. */
+export declare function minifySync(filename: string, sourceText: string, options?: MinifyOptions | undefined | null): MinifyResult
 
 export interface TreeShakeOptions {
   /**

@@ -4,6 +4,259 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [1.31.0] - 2025-12-01
+
+### 🚀 Features
+
+- 4b24825 linter: Implement no-restricted-types rule (#16276) (camc314)
+
+### 🐛 Bug Fixes
+
+- 71271ee linter: Fix `typescript/no-empty-interface` config option casing. (#16282) (connorshea)
+- 385e13e linter: Support both prefer-inline and preferInline for import/no-duplicates (#16275) (copilot-swe-agent)
+- efc08d3 linter: Fix config docs for no-return-assign and unicode-bom rules. (#16260) (connorshea)
+- dc96d3f linter: Correct docs to use string option for import/first rule. (#16264) (connorshea)
+- 15ce491 linter: Correct the default config options for the switch-exhaustiveness-check rule. (#16268) (connorshea)
+- 13f985c linter: Fix casing for unicorn/explicit-length-check config option. (#16269) (connorshea)
+- 42e9dcc linter: Fix docs for `consistent-type-specifier-style` and `consistent-type-definitions` rules. (#16253) (connorshea)
+- 505ceb1 linter: Fix the radix rule docs to correctly render as a string-only config option (#16248) (connorshea)
+- 55fcfba linter: Add considerDefaultExhaustiveForUnions option to switch-exhaustiveness-check (#16204) (camc314)
+- 75249e0 linter/plugins: Handle non-UTF8 file paths (#16157) (overlookmotel)
+- d2b7dcb tsgolint: Improve lsp diagnostic when linting fails (#16115) (camc314)
+- 8810bd5 linter: Prevent conflicting fixes between prefer_number_properties and prefer_numeric_literals (#16113) (camc314)
+- 2da2fc1 linter: Fix prefer-string-raw fixer producing invalid JS for non-ASCII strings (#16102) (camc314)
+- e1c21ca linter/jsx-key: Implement missing options (#15731) (camc314)
+
+### ⚡ Performance
+
+- 714a91a linter/no-restricted-types: Skip running if config is empty (#16278) (camc314)
+
+### 📚 Documentation
+
+- d4a1581 linter: Add a link to MDN for the no-proto rule. (#16213) (connorshea)
+- 6d6e9c9 linter: Improve the docs for oxc/no-async-await rule. (#16181) (connorshea)
+
+## [1.30.0] - 2025-11-24
+
+### 💥 BREAKING CHANGES
+
+- cbb27fd ast: [**BREAKING**] Add `TSGlobalDeclaration` type (#15712) (overlookmotel)
+
+### 🚀 Features
+
+- 72660f7 linter: Support auto generate config document for tuple lint option (#15904) (Duc Nghiem Xuan)
+- 6ae232b linter: Expose type errors via tsgolint (#15917) (camc314)
+- 595867a oxlint: Generate markdownDescription fields for oxlint JSON schema. (#15959) (connorshea)
+- a21f9e4 linter: Implement unicorn/prefer-bigint-literals rule (#15923) (Michiel Vrins)
+- 4b9d8d2 linter/type-aware: Include range with tsconfig diagnostics (#15916) (camc314)
+
+### 🐛 Bug Fixes
+
+- 81f5360 linter/prefer-number-properties: Get fixer to replace entire call expr (#15979) (camc314)
+- a8a2032 linter: Support missing `range` for internal diagnostics (#15964) (camc314)
+- 6ab1a20 linter: Fix no_useless_spread producing invalid syntax when removing empty object spreads (#15905) (camc314)
+- be4b6df linter: Unicorn/prefer-string-replace-all incorrectly escapes backslashes (#15901) (camc314)
+- b622ef8 linter: Fix `oxc/bad_array_method_on_arguments` rule behavior. (#15854) (connorshea)
+- aa06c3f linter: Recognize NewExpression as value context in no-unused-private-class-members (#15843) (camc314)
+- e89c5ba typescript/prefer-namespace-keyword: Skip nested `TSModuleDeclaration`s (#15806) (overlookmotel)
+- 646d020 linter/exhaustive-dependencies: Prevent is_callee_of_call_expr flag from leaking into nested expressions (#15832) (camc314)
+- 50307c1 linter/jest: Ignore `expect` identifier in argument position (#15785) (camc314)
+
+### ⚡ Performance
+
+- a49f704 linter/typescript: Avoid searching source text unless required (#15805) (overlookmotel)
+
+### 📚 Documentation
+
+- ceffa5a linter: Add config option docs for various rules. (#16024) (connorshea)
+- 9a0ed13 linter: Fix config option docs for eslint/operator-assignment rule. (#16030) (connorshea)
+- 0b18005 linter: Add config docs generation for rules with Regex arguments (#15978) (connorshea)
+- 48d18e0 linter: Improve diagnostic message for promise/catch-or-return rule (#15980) (connorshea)
+- 6c72e84 linter: Use backticks for code elements across more rule diagnostics (#15958) (connorshea)
+- 1487271 linter: Add config option docs for `jsdoc/require-param` and `jsdoc/require-returns` rules (#15857) (connorshea)
+- 9b7b083 linter: Fix error in `curly` `"all"` example (#15801) (camc314)
+- 65a3520 linter: Improve diagnostic for consistent-type-definitions rule. (#15752) (connorshea)
+
+## [1.29.0] - 2025-11-17
+
+### 🚀 Features
+
+- c199e38 linter: Implement config for all tsgolint rules supporting options (#15659) (camchenry)
+- 7598b3e linter: Allow configuring tsgolint rules (#15286) (camchenry)
+- e50a9bf linter: Add unicorn/prefer-response-static-json rule (#15692) (Mikhail Baev)
+- f5d9abb oxlint: Add enabled? column to --rules cli output (#15213) (Wren)
+- 84de1ca oxlint,oxfmt: Allow comments and also commas for vscode-json-ls (#15612) (leaysgur)
+- e763919 linter: Add test to enforce schema documentation for rules with configuration options (#15234) (Connor Shea)
+- 6cd0b5f linter/no-callback-in-promise: Add support for `timeoutsErr` option (#15507) (Li Wei)
+
+### 🐛 Bug Fixes
+
+- 1decd57 linter/no-empty-named-blocks: Only search within node for comma token (#15751) (camc314)
+- 17c3d6d linter: Improve docs, diagnostic message, and implementation of typescript/consistent-indexed-object-style rule. (#15750) (connorshea)
+- 78a6df2 linter/no-empty-named-blocks: Skip comments when searching for token (#15735) (camc314)
+- 042befd linter/require-await: Skip comments when searching for token (#15734) (camc314)
+- 7a78220 linter/no-async-await: Skip comments when searching for token (#15733) (camc314)
+- 23b9ad1 linter/consistent-type-specifier-style: Skip comments when searching for token (#15732) (camc314)
+- 440a977 ast: Include rest properties when using `get_binding_identifiers` (#15710) (camc314)
+- 516d14e linter/no-namespace: Skip comments when searching for token (#15716) (camc314)
+- b5aaace linter/prefer-namespace-keyword: Skip comments when searching for token (#15715) (camc314)
+- 9f991a4 linter: Reverse extends overrides priority (#14939) (Peter Wagenet)
+- 81e179c linter: Allow file extensions without a dot in react/jsx-filename-extension rule (#15574) (Connor Shea)
+- 7a0e931 linter: Update the unicorn/prefer-add-event-listener rule with new JavaScript APIs (#15581) (connorshea)
+
+### 📚 Documentation
+
+- 3ab750a linter: Clarify react-in-jsx-scope rule docs. (#15749) (connorshea)
+- 2c58952 linter: Add config docs for no-restricted-globals rule. (#15662) (connorshea)
+- fd58aea linter: Fix a typo in the docs for react/no-is-mounted. (#15575) (Connor Shea)
+
+## [1.28.0] - 2025-11-10
+
+### 🚀 Features
+
+- 9f759a0 linter: Add unicorn/no-useless-collection-argument (#15545) (Mikhail Baev)
+
+### 🐛 Bug Fixes
+
+- 1b994d1 linter/no-unused-private-class-members: Correctly detect value context for private members in assignment expressions (#15553) (camc314)
+
+## [1.27.0] - 2025-11-10
+
+### 🚀 Features
+
+- 2a89b43 linter: Introduce debug assertions after fixes to assert validity (#15389) (camc314)
+
+### 🐛 Bug Fixes
+
+- 6f3cd77 linter/no-var: Incorrect warning for blocks (#15504) (Hamir Mahal)
+- 732205e parser: Reject `using` / `await using` in a switch `case` / `default` clause (#15225) (sapphi-red)
+- 3c8d3a7 lang-server: Improve logging in failure case for tsgolint (#15299) (camc314)
+- ef71410 linter: Use jsx if source type is JS in fix debug assertion (#15434) (camc314)
+- e32bbf6 linter/no-var: Handle TypeScript declare keyword in fixer (#15426) (camc314)
+- 6565dbe linter/switch-case-braces: Skip comments when searching for `:` token (#15425) (camc314)
+- 85bd19a linter/prefer-class-fields: Insert value after type annotation in fixer (#15423) (camc314)
+- ddd9f9f linter/forward-ref-uses-ref: Dont suggest removing wrapper in invalid positions (#15388) (camc314)
+- dac2a9c linter/no-template-curly-in-string: Remove fixer (#15387) (camc314)
+- 989b8e3 linter/no-var: Only fix to `const` if the var has an initializer (#15385) (camc314)
+
+### ⚡ Performance
+
+- 3166233 linter/plugins: Remove `Arc`s (#15431) (overlookmotel)
+
+### 📚 Documentation
+
+- 2c6bd9e linter: Always refer as "ES2015" instead of "ES6" (#15411) (sapphi-red)
+- a0c5203 linter/import/named: Update "ES7" comment in examples (#15410) (sapphi-red)
+- 3dc24b5 linter,minifier: Always refer as "ES Modules" instead of "ES6 Modules" (#15409) (sapphi-red)
+- 2ad77fb linter/no-this-before-super: Correct "Why is this bad?" section (#15408) (sapphi-red)
+- 57f0ce1 linter: Add backquotes where appropriate (#15407) (sapphi-red)
+
+## [1.26.0] - 2025-11-05
+
+### 🚀 Features
+
+- 6f4a50c linter: Implement react/state-in-constructor rule (#15329) (Mikhail Baev)
+- 230e34c linter/plugins: Allow js plugins to access settings (#14724) (Arsh)
+- 8d69661 allocator: Add `Address::from_ref` method (#15318) (overlookmotel)
+- 798216b language_server: Respect disable directives for type-aware rules (#15170) (Sysix)
+- 7a00691 linter/no-deprecated: Add rule (#15272) (camc314)
+- ab065a9 tsgolint: Improve diagnostic messages with file reference (#15274) (camc314)
+- 26f24d5 linter: Permit comments in `.oxlintrc.json` via json schema file (#15249) (Martin Leduc)
+- 979ec04 linter: Pretty print tsgolint internal diagnostics (#15131) (camc314)
+- 682dca2 parser: Add more helps to parser errors (#15186) (sapphi-red)
+
+### 🐛 Bug Fixes
+
+- 1d09cc9 linter/no-unused-private-class-members: Fix false positive in conditional expressino (#15319) (camc314)
+- 56c6627 linter/plugins: Resolve JS plugins only with conditions Node.js supports (#15248) (sapphi-red)
+- d6996d0 linter: Fix JSON schema to deny additional properties for categories enum. (#15257) (Connor Shea)
+- 9304f9f linter: Fix JSON schema to deny additional properties for plugins enum. (#15259) (Connor Shea)
+- 6a884d3 linter: Return error diagnostics if tsgolint fails (#15229) (camc314)
+- 377e904 linter: Ignore script tag in code comment (#15202) (Liang Mi)
+- b26900c linter: Improve diagnostic for react/button-has-type. (#15200) (Connor Shea)
+- 80a187c linter: Add offset for parsing error in partial loading files (#15075) (Liang Mi)
+- af257da linter/no-unused-vars: False positive with member expressions in sequence expressions (#15190) (magic-akari)
+
+### 🚜 Refactor
+
+- 90146ab linter/react: Simplify `is_react_hook` (#15310) (overlookmotel)
+- e70a37f language_server: Use `LintRunner` (#14472) (Sysix)
+- 5501ed2 language_server: Send in memory source text to `tsgolint` (#14733) (Sysix)
+- f452007 linter/no-unwanted-polyfillio: Add security warning for compromised domains (#15207) (shulaoda)
+- 27b4f36 diagnostic: Remove `path` from sender (#15130) (camc314)
+
+### 📚 Documentation
+
+- 84ef5ab linter: Avoid linebreaks for markdown links and update plugins docs in the configuration schema. (#15246) (Connor Shea)
+- ec6721c linter: Improve documentation for no-unused-vars and no-useless-constructor. (#15244) (Connor Shea)
+- 52be364 linter/no-useless-constructor: Clarify caveat regarding visibility changes in constructors (#15239) (camc314)
+- d5c4ce8 linter: Add config option docs for 7 rules. (#15209) (Connor Shea)
+- 096fb2c linter: Add config option docs for 3 rules. (#15211) (Connor Shea)
+- 3f393e3 linter: Add configuration option docs for promise/no-callback-in-promise rule. (#15176) (Connor Shea)
+- 4ba1bca linter: Add configuration option docs for 5 rules. (#15199) (Connor Shea)
+- ab46187 linter: Add configuration docs for 6 react rules. (#15198) (Connor Shea)
+- 51c8724 linter: Add config docs for 4 more rules. (#15196) (Connor Shea)
+- e6677b1 linter: Add configuration option docs for 4 rules. (#15197) (Connor Shea)
+- 1fd14c0 linter: Add configuration option docs for 6 rules (#15194) (Connor Shea)
+- eafcb1a linter: Add autogenerated docs for no-magic-numbers rule. (#14846) (Connor Shea)
+- 1b9f6fc linter: Add configuration option docs for 6 rules (#15168) (Connor Shea)
+- 410b3cb linter: Add configuration option docs for import/extensions rule. (#15171) (Connor Shea)
+- b0cc5de linter: Add configuration option docs for 4 jest rules (#15172) (Connor Shea)
+- 4dd1a4e linter: Remove unnecessary link comments. (#15175) (Connor Shea)
+- 28642a9 linter: Add configuration option docs for various jsx-a11y rules (#15179) (Connor Shea)
+- ace4def linter: Add configuration option docs for unicorn/no-array-reverse rule. (#15143) (Connor Shea)
+- f707fc9 linter: Add configuration option docs for unicorn/no-null rule. (#15144) (Connor Shea)
+- f826b15 linter: Add configuration option docs for unicorn/explicit-length-check rule. (#15145) (Connor Shea)
+- 3d78ad9 linter: Add configuration option docs for react/button-has-type rule. (#15146) (Connor Shea)
+- d68efca linter: Add configuration option docs for unicorn/prefer-structured-clone rule. (#15148) (Connor Shea)
+- 86f6bb9 linter: Add configuration option docs for react/jsx-no-useless-fragment rule. (#15149) (Connor Shea)
+- 4950fb6 linter: Add configuration option docs for eslint/no-duplicate-import rule. (#15150) (Connor Shea)
+- 9b56425 linter: Add configuration option docs for import/max-dependencies rule. (#15151) (Connor Shea)
+- 47d43eb linter: Add configuration option docs for typescript/no-extraneous-class rule. (#15152) (Connor Shea)
+- db30aed linter: Add configuration option docs for react/no-string-refs rule. (#15153) (Connor Shea)
+- 0e753c1 linter: Add configuration option docs for react/check-requires-onchange-or-readonly rule. (#15154) (Connor Shea)
+- 551f236 linter: Add configuration option docs for jest/valid-expect rule. (#15155) (Connor Shea)
+- e860e65 linter: Add configuration option docs for import/first rule. (#15162) (Connor Shea)
+- d9162f6 linter: Add configuration option docs for import/no-dynamic-require rule. (#15157) (Connor Shea)
+- ee85540 linter: Add configuration option docs for eslint/no-redeclare rule. (#15158) (Connor Shea)
+- 24878cb linter: Add configuration option docs for typescript/explicit-function-return-type rule. (#15160) (Connor Shea)
+- 8349771 linter: Add configuration option docs for typescript/no-this-alias rule. (#15161) (Connor Shea)
+- 75f0de0 linter: Add configuration option docs for import/prefer-default-export rule. (#15164) (Connor Shea)
+- 7367353 linter: Add configuration option docs for import/no-namespace rule. (#15165) (Connor Shea)
+- 69babde linter: Add configuration option docs for unicorn/no-array-reduce rule. (#15142) (Connor Shea)
+- 2c40ad8 linter: Add configuration option docs for typescript/consistent-indexed-object-style rule. (#15140) (Connor Shea)
+- a9f5778 linter: Add configuration option docs for unicorn/prefer-number-properties rule. (#15141) (Connor Shea)
+- 41427c2 linter: Add configuration option docs for import/consistent-type-specifier-style rule. (#15139) (Connor Shea)
+- 18274aa linter: Add configuration option docs for import/no-duplicates rule. (#15137) (Connor Shea)
+- d78419f linter: Add configuration option docs for import/no-cycle rule. (#15136) (Connor Shea)
+- 297176c linter: Add configuration option docs for typescript/no-inferrable-types rule. (#15134) (Connor Shea)
+- 1b2aaa0 linter: Add configuration option docs for unicorn/no-useless-promise-resolve-reject rule. (#15135) (Connor Shea)
+- 5c25141 linter: Add configuration option docs for import/no-absolute-path rule. (#15132) (Connor Shea)
+- 053c1de linter: Add configuration option docs for typescript/prefer-literal-enum-member rule. (#15133) (Connor Shea)
+- 7ba65f4 linter/no-loss-off-precision: Fix typo (#15129) (camc314)
+- 59bb65c linter: Add configuration option docs for typescript/triple-slash-reference rule. (#15097) (Connor Shea)
+- 3113dfe linter: Add configuration option docs for typescript/no-empty-interface rule. (#15098) (Connor Shea)
+- 731f80b linter: Add configuration option docs for promise/no-return-wrap rule (#15099) (Connor Shea)
+- c762216 linter: Add configuration option docs for react/self-closing-comp rule. (#15100) (Connor Shea)
+- 88f78b7 linter: Add configuration option docs for promise/prefer-await-to-then rule. (#15102) (Connor Shea)
+- 62dbdc4 linter: Add configuration option docs for promise/catch-or-return rule. (#15103) (Connor Shea)
+- 219537c linter: Add configuration option docs for eslint/no-unsafe-optional-chaining rule. (#15104) (Connor Shea)
+- 4c4a2de linter: Add configuration option docs for unicorn/no-useless-undefined rule. (#15106) (Connor Shea)
+- fc603e9 linter: Add configuration option docs for eslint/no-undef rule. (#15108) (Connor Shea)
+- b8d03ee linter: Add configuration option docs for eslint/prefer-promise-reject-errors rule. (#15110) (Connor Shea)
+- 1e8e3c0 linter: Add configuration option docs for eslint/no-useless-rename rule. (#15111) (Connor Shea)
+- 5e6b62e linter: Add configuration option docs for eslint/no-labels rule. (#15112) (Connor Shea)
+- dde7fde linter: Add configuration option docs for eslint/max-nested-callbacks rule. (#15107) (Connor Shea)
+
+### ⚡ Performance
+
+- 313e82e linter/no-unwanted-polyfillio: Should run when source type is jsx (#15204) (shulaoda)
+
+### 🧪 Testing
+
+- 70bf817 linter/no-unused-private-class-members: Add edge case tests for conditional expressions (#15320) (camc314)
+
+
 ## [1.25.0] - 2025-10-30
 
 ### 💥 BREAKING CHANGES

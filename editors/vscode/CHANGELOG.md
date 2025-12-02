@@ -4,6 +4,58 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [1.30.0] - 2025-11-24
+
+### 🚀 Features
+
+- 5569317 vscode: Add quick actions to status bar tooltip (#15962) (Sysix)
+- 220d01e editor: Improve the status bar item for the VS Code extension by adding a tooltip. (#15819) (connorshea)
+
+### 🐛 Bug Fixes
+
+- 2bd3cb6 apps, editors, napi: Fix `oxlint-disable` comments (#16014) (overlookmotel)
+
+### 📚 Documentation
+
+- 81ea642 vscode: Use markdownDescription for better formatting in VSCode Settings (#15889) (connorshea)
+
+### 🛡️ Security
+
+- f9b9276 deps: Update dependency rolldown to v1.0.0-beta.51 (#15856) (renovate[bot])
+
+## [1.29.0] - 2025-11-17
+
+### 🚀 Features
+
+- e77f2ce vscode: Support `oxlint --lsp` (#15680) (Sysix)
+- e01c551 oxlint: Add `--lsp` flag to run the language server (#15611) (Sysix)
+
+### 🐛 Bug Fixes
+
+- 4eb9fa6 editor: Execute `oxc.path.server` in win32 with shell (#14203) (Sysix)
+
+## [1.27.0] - 2025-11-10
+
+### 🚀 Features
+
+- ad3c45a editor: Add `oxc.path.node` option (#15040) (Sysix)
+
+## [1.26.0] - 2025-11-05
+
+### 🐛 Bug Fixes
+
+- 1f365c8 vscode/test: Make formatting test less flaky (#15120) (camc314)
+
+### 🚜 Refactor
+
+- e70a37f language_server: Use `LintRunner` (#14472) (Sysix)
+
+### 🧪 Testing
+
+- baaeca8 editor: Skip `changing oxc.typeAware` test for the moment (#15167) (Sysix)
+- 1c4444c editor: Wait longer for "detects diagnostics on run" fixture (#15156) (Sysix)
+
+
 ## [1.25.0] - 2025-10-30
 
 ### 💥 BREAKING CHANGES

@@ -4,6 +4,42 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.16.0] - 2025-12-01
+
+### 🐛 Bug Fixes
+
+- 9706a1a oxfmt: Ignore unsupported options (#16085) (leaysgur)
+
+## [0.15.0] - 2025-11-24
+
+### 💥 BREAKING CHANGES
+
+- a937890 formatter: [**BREAKING**] Default to `lineWidth: 100` (#15933) (leaysgur)
+
+### 🚀 Features
+
+- 7818e22 formatter/sort-imports: Support `options.groups` (#15831) (leaysgur)
+
+## [0.14.0] - 2025-11-17
+
+### 🚀 Features
+
+- 84de1ca oxlint,oxfmt: Allow comments and also commas for vscode-json-ls (#15612) (leaysgur)
+
+## [0.12.0] - 2025-11-10
+
+### 🚀 Features
+
+- 3251000 oxfmt: Use `prettier` directly and bundle `prettier` (#15544) (Dunqing)
+- 5708126 formatter/sort_imports: Add `options.newlinesBetween` (#15369) (leaysgur)
+
+## [0.11.0] - 2025-11-06
+
+### 🐛 Bug Fixes
+
+- 7e0c13e oxfmt: Just run dist/cli.js (#15355) (Yuji Sugiura)
+
+
 ## [0.10.0] - 2025-11-04
 
 ### 🚀 Features

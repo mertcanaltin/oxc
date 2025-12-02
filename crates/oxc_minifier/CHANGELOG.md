@@ -4,6 +4,36 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.100.0] - 2025-12-01
+
+### 🐛 Bug Fixes
+
+- 6b54dab minifier: Incorrect non-null object condition simplification with `&&` and `||` (#16161) (sapphi-red)
+- 9cc20a1 minifier: Avoid merging side effectful expressions to next assignment statement if the side effect may change the left hand side reference (#16165) (sapphi-red)
+
+## [0.99.0] - 2025-11-24
+
+### 🐛 Bug Fixes
+
+- f386efc minifier: Avoid generating invalid spans (#15778) (sapphi-red)
+
+## [0.98.0] - 2025-11-17
+
+### 🚀 Features
+
+- 56e7e44 minifier: Disable removal of unnecessary `use strict` directives for DCE (#15691) (sapphi-red)
+- 68703b9 minifier: Rotate binary expressions to remove parentheses (#15473) (sapphi-red)
+
+### 🐛 Bug Fixes
+
+- 440a977 ast: Include rest properties when using `get_binding_identifiers` (#15710) (camc314)
+
+## [0.97.0] - 2025-11-11
+
+### 🐛 Bug Fixes
+
+- 8b14ec9 minifier: Handle `{ __proto__: null } instanceof Object` correctly (#15217) (sapphi-red)
+
 ## [0.96.0] - 2025-10-30
 
 ### 🚀 Features

@@ -1,6 +1,6 @@
-import assert from 'node:assert';
+import assert from "node:assert";
 
-import type { ESTree, Node, Plugin, Rule } from '../../../dist/index.js';
+import type { ESTree, Node, Plugin, Rule } from "#oxlint";
 
 type Program = ESTree.Program;
 
@@ -18,23 +18,27 @@ const createRule: Rule = {
   create(context) {
     const { ast, lines, text } = context.sourceCode;
 
-    let locs = '';
+    assert(context.getSourceCode() === context.sourceCode);
+
+    let locs = "";
     for (let offset = 0; offset <= text.length; offset++) {
       const loc = context.sourceCode.getLocFromIndex(offset);
       assert(context.sourceCode.getIndexFromLoc(loc) === offset);
-      locs += `\n  ${offset} => { line: ${loc.line}, column: ${loc.column} }` +
-        `(${JSON.stringify(text[offset] || '<EOF>')})`;
+      locs +=
+        `\n  ${offset} => { line: ${loc.line}, column: ${loc.column} }` +
+        `(${JSON.stringify(text[offset] || "<EOF>")})`;
     }
 
     context.report({
-      message: 'create:\n' +
+      message:
+        "create:\n" +
         `text: ${JSON.stringify(text)}\n` +
         `getText(): ${JSON.stringify(context.sourceCode.getText())}\n` +
         `lines: ${JSON.stringify(lines)}\n` +
         `locs:${locs}\n` +
         // @ts-ignore
         `ast: "${ast.body[0].declarations[0].id.name}"\n` +
-        `visitorKeys: ${context.sourceCode.visitorKeys.BinaryExpression.join(', ')}`,
+        `visitorKeys: ${context.sourceCode.visitorKeys.BinaryExpression.join(", ")}`,
       node: SPAN,
     });
 
@@ -55,7 +59,8 @@ const createRule: Rule = {
         assert(context.sourceCode.getIndexFromLoc(endLoc) === node.end);
 
         context.report({
-          message: `ident "${node.name}":\n` +
+          message:
+            `ident "${node.name}":\n` +
             `source: "${context.sourceCode.getText(node)}"\n` +
             `source with before: "${context.sourceCode.getText(node, 2)}"\n` +
             `source with after: "${context.sourceCode.getText(node, null, 1)}"\n` +
@@ -78,23 +83,25 @@ const createOnceRule: Rule = {
         ast = context.sourceCode.ast;
         const { lines, text } = context.sourceCode;
 
-        let locs = '';
+        let locs = "";
         for (let offset = 0; offset <= text.length; offset++) {
           const loc = context.sourceCode.getLocFromIndex(offset);
           assert(context.sourceCode.getIndexFromLoc(loc) === offset);
-          locs += `\n  ${offset} => { line: ${loc.line}, column: ${loc.column} }` +
-            `(${JSON.stringify(text[offset] || '<EOF>')})`;
+          locs +=
+            `\n  ${offset} => { line: ${loc.line}, column: ${loc.column} }` +
+            `(${JSON.stringify(text[offset] || "<EOF>")})`;
         }
 
         context.report({
-          message: 'before:\n' +
+          message:
+            "before:\n" +
             `text: ${JSON.stringify(text)}\n` +
             `getText(): ${JSON.stringify(context.sourceCode.getText())}\n` +
             `lines: ${JSON.stringify(lines)}\n` +
             `locs:${locs}\n` +
             // @ts-ignore
             `ast: "${ast.body[0].declarations[0].id.name}"\n` +
-            `visitorKeys: ${context.sourceCode.visitorKeys.BinaryExpression.join(', ')}`,
+            `visitorKeys: ${context.sourceCode.visitorKeys.BinaryExpression.join(", ")}`,
           node: SPAN,
         });
       },
@@ -114,7 +121,8 @@ const createOnceRule: Rule = {
         assert(context.sourceCode.getIndexFromLoc(endLoc) === node.end);
 
         context.report({
-          message: `ident "${node.name}":\n` +
+          message:
+            `ident "${node.name}":\n` +
             `source: "${context.sourceCode.getText(node)}"\n` +
             `source with before: "${context.sourceCode.getText(node, 2)}"\n` +
             `source with after: "${context.sourceCode.getText(node, null, 1)}"\n` +
@@ -129,8 +137,7 @@ const createOnceRule: Rule = {
         ast = null;
 
         context.report({
-          message: 'after:\n' +
-            `source: ${JSON.stringify(context.sourceCode.text)}`,
+          message: "after:\n" + `source: ${JSON.stringify(context.sourceCode.text)}`,
           node: SPAN,
         });
       },
@@ -140,11 +147,11 @@ const createOnceRule: Rule = {
 
 const plugin: Plugin = {
   meta: {
-    name: 'source-code-plugin',
+    name: "source-code-plugin",
   },
   rules: {
     create: createRule,
-    'create-once': createOnceRule,
+    "create-once": createOnceRule,
   },
 };
 

@@ -1,8 +1,11 @@
-commit: 8ea03f88
+commit: 669c25c0
 
 estree_typescript Summary:
-AST Parsed     : 8767/8767 (100.00%)
-Positive Passed: 8762/8767 (99.94%)
+AST Parsed     : 9753/9753 (100.00%)
+Positive Passed: 9747/9753 (99.94%)
+Expect to Parse: tasks/coverage/typescript/tests/cases/compiler/modulePreserveTopLevelAwait1.ts
+`await` is only allowed within async functions and at the top levels of modules
+
 Mismatch: tasks/coverage/typescript/tests/cases/conformance/importDefer/importDeferComments.ts
 
 Mismatch: tasks/coverage/typescript/tests/cases/conformance/importDefer/importDeferDeclaration.ts

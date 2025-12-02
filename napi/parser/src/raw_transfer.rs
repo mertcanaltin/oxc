@@ -18,7 +18,7 @@ use oxc::{
 use oxc_napi::get_source_type;
 
 use crate::{
-    AstType, ParserOptions, get_ast_type, parse,
+    AstType, ParserOptions, get_ast_type, parse_impl,
     raw_transfer_constants::{BLOCK_ALIGN as BUFFER_ALIGN, BUFFER_SIZE},
     raw_transfer_types::{EcmaScriptModule, Error, RawTransferData, RawTransferMetadata},
 };
@@ -44,6 +44,7 @@ const BUMP_ALIGN: usize = 16;
 /// Does not check that the offset is within bounds of `buffer`.
 /// To ensure it always is, provide a `Uint8Array` of at least `BUFFER_SIZE + BUFFER_ALIGN` bytes.
 #[napi(skip_typescript)]
+#[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
 pub fn get_buffer_offset(buffer: Uint8Array) -> u32 {
     let buffer = &*buffer;
     let offset = (BUFFER_ALIGN - (buffer.as_ptr() as usize % BUFFER_ALIGN)) % BUFFER_ALIGN;
@@ -76,7 +77,8 @@ pub fn get_buffer_offset(buffer: Uint8Array) -> u32 {
 ///
 /// Panics if source text is too long, or AST takes more memory than is available in the buffer.
 #[napi(skip_typescript)]
-pub unsafe fn parse_sync_raw(
+#[allow(clippy::needless_pass_by_value, clippy::allow_attributes)]
+pub unsafe fn parse_raw_sync(
     filename: String,
     mut buffer: Uint8Array,
     source_len: u32,
@@ -92,7 +94,7 @@ pub unsafe fn parse_sync_raw(
 
 /// Parse AST into provided `Uint8Array` buffer, asynchronously.
 ///
-/// Note: This function can be slower than `parseSyncRaw` due to the overhead of spawning a thread.
+/// Note: This function can be slower than `parseRawSync` due to the overhead of spawning a thread.
 ///
 /// Source text must be written into the start of the buffer, and its length (in UTF-8 bytes)
 /// provided as `source_len`.
@@ -119,7 +121,7 @@ pub unsafe fn parse_sync_raw(
 ///
 /// Panics if source text is too long, or AST takes more memory than is available in the buffer.
 #[napi(skip_typescript)]
-pub fn parse_async_raw(
+pub fn parse_raw(
     filename: String,
     buffer: Uint8Array,
     source_len: u32,
@@ -220,7 +222,7 @@ unsafe fn parse_raw_impl(
         // SAFETY: Caller guarantees source occupies this region of the buffer and is valid UTF-8
         let source_text = unsafe { str::from_utf8_unchecked(source_text) };
 
-        let ret = parse(&allocator, source_type, source_text, &options);
+        let ret = parse_impl(&allocator, source_type, source_text, &options);
         let mut program = ret.program;
         let mut comments = mem::replace(&mut program.comments, ArenaVec::new_in(&allocator));
         let mut module_record = ret.module_record;
@@ -282,13 +284,4 @@ unsafe fn parse_raw_impl(
     unsafe {
         buffer_ptr.add(RAW_METADATA_OFFSET).cast::<RawTransferMetadata>().write(metadata);
     }
-}
-
-/// Returns `true` if raw transfer is supported on this platform.
-//
-// This module is only compiled on 64-bit little-endian platforms.
-// Fallback version for unsupported platforms in `lib.rs`.
-#[napi]
-pub fn raw_transfer_supported() -> bool {
-    true
 }

@@ -7,22 +7,27 @@ use rustc_hash::FxHashSet;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{AstNode, context::LintContext, rule::Rule};
+use crate::{
+    AstNode,
+    context::LintContext,
+    rule::{DefaultRuleConfig, Rule},
+};
 
 fn no_process_env_diagnostic(span: Span) -> OxcDiagnostic {
-    OxcDiagnostic::warn("Unexpected use of `process.env`")
-        .with_help("Remove usage of `process.env`")
+    OxcDiagnostic::warn("Disallowed usage of `process.env`.")
+        .with_help("Remove usage of `process.env`.")
         .with_label(span)
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename_all = "camelCase")]
-struct ConfigElement0 {
+#[serde(rename_all = "camelCase", default)]
+struct NoProcessEnvConfig {
+    /// Variable names which are allowed to be accessed on `process.env`.
     allowed_variables: FxHashSet<CompactStr>,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, JsonSchema)]
-pub struct NoProcessEnv(Box<ConfigElement0>);
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
+pub struct NoProcessEnv(Box<NoProcessEnvConfig>);
 
 declare_oxc_lint!(
     /// ### What it does
@@ -54,7 +59,7 @@ declare_oxc_lint!(
     NoProcessEnv,
     node,
     restriction,
-    config = NoProcessEnv,
+    config = NoProcessEnvConfig,
 );
 
 fn is_process_global_object(object_expr: &oxc_ast::ast::Expression, ctx: &LintContext) -> bool {
@@ -66,20 +71,9 @@ fn is_process_global_object(object_expr: &oxc_ast::ast::Expression, ctx: &LintCo
 
 impl Rule for NoProcessEnv {
     fn from_configuration(value: serde_json::Value) -> Self {
-        let allowed_variables: FxHashSet<CompactStr> = value
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|v| v.get("allowedVariables"))
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str())
-                    .map(CompactStr::from)
-                    .collect::<FxHashSet<CompactStr>>()
-            })
-            .unwrap_or_default();
-
-        Self(Box::new(ConfigElement0 { allowed_variables }))
+        serde_json::from_value::<DefaultRuleConfig<NoProcessEnv>>(value)
+            .unwrap_or_default()
+            .into_inner()
     }
 
     fn run<'a>(&self, node: &AstNode<'a>, ctx: &LintContext<'a>) {
@@ -162,6 +156,8 @@ fn test() {
         ("process['env']", None),
         ("process.env.ENV", None),
         ("f(process.env)", None),
+        ("process.env.ENV", Some(serde_json::json!([{ "allowedVariables": [] }]))),
+        ("f(process.env.NODE_ENV)", None),
         (
             "process.env['OTHER_VARIABLE']",
             Some(serde_json::json!([{ "allowedVariables": ["NODE_ENV"] }])),

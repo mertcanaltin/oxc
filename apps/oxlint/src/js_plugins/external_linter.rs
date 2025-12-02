@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::Ordering, mpsc::channel};
+use std::sync::{atomic::Ordering, mpsc::channel};
 
 use napi::{
     Status,
@@ -9,24 +9,26 @@ use serde::Deserialize;
 
 use oxc_allocator::{Allocator, free_fixed_size_allocator};
 use oxc_linter::{
-    ExternalLinter, ExternalLinterLintFileCb, ExternalLinterLoadPluginCb, LintFileResult,
-    PluginLoadResult,
+    ExternalLinter, ExternalLinterLintFileCb, ExternalLinterLoadPluginCb,
+    ExternalLinterSetupConfigsCb, LintFileResult, PluginLoadResult,
 };
 
 use crate::{
     generated::raw_transfer_constants::{BLOCK_ALIGN, BUFFER_SIZE},
-    run::{JsLintFileCb, JsLoadPluginCb},
+    run::{JsLintFileCb, JsLoadPluginCb, JsSetupConfigsCb},
 };
 
 /// Wrap JS callbacks as normal Rust functions, and create [`ExternalLinter`].
 pub fn create_external_linter(
     load_plugin: JsLoadPluginCb,
+    setup_configs: JsSetupConfigsCb,
     lint_file: JsLintFileCb,
 ) -> ExternalLinter {
     let rust_load_plugin = wrap_load_plugin(load_plugin);
+    let rust_setup_configs = wrap_setup_configs(setup_configs);
     let rust_lint_file = wrap_lint_file(lint_file);
 
-    ExternalLinter::new(rust_load_plugin, rust_lint_file)
+    ExternalLinter::new(rust_load_plugin, rust_setup_configs, rust_lint_file)
 }
 
 /// Wrap `loadPlugin` JS callback as a normal Rust function.
@@ -36,13 +38,12 @@ pub fn create_external_linter(
 ///
 /// The returned function will panic if called outside of a Tokio runtime.
 fn wrap_load_plugin(cb: JsLoadPluginCb) -> ExternalLinterLoadPluginCb {
-    let cb = Arc::new(cb);
-    Arc::new(move |plugin_path, package_name| {
-        let cb = Arc::clone(&cb);
-        tokio::task::block_in_place(move || {
+    Box::new(move |plugin_url, package_name| {
+        let cb = &cb;
+        tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async move {
                 let result = cb
-                    .call_async(FnArgs::from((plugin_path, package_name)))
+                    .call_async(FnArgs::from((plugin_url, package_name)))
                     .await?
                     .into_future()
                     .await?;
@@ -60,6 +61,38 @@ pub enum LintFileReturnValue {
     Failure(String),
 }
 
+/// Wrap `setupConfigs` JS callback as a normal Rust function.
+///
+/// The JS-side `setupConfigs` function is synchronous, but it's wrapped in a `ThreadsafeFunction`,
+/// so cannot be called synchronously. Use an `mpsc::channel` to wait for the result from JS side,
+/// and block current thread until `setupConfigs` completes execution.
+fn wrap_setup_configs(cb: JsSetupConfigsCb) -> ExternalLinterSetupConfigsCb {
+    Box::new(move |options_json: String| {
+        let (tx, rx) = channel();
+
+        // Send data to JS
+        let status = cb.call_with_return_value(
+            options_json,
+            ThreadsafeFunctionCallMode::NonBlocking,
+            move |result, _env| {
+                let _ = match &result {
+                    Ok(()) => tx.send(Ok(())),
+                    Err(e) => tx.send(Err(e.to_string())),
+                };
+                result
+            },
+        );
+
+        assert!(status == Status::Ok, "Failed to schedule setupConfigs callback: {status:?}");
+
+        match rx.recv() {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(err)) => Err(err),
+            Err(err) => panic!("setupConfigs callback did not respond: {err}"),
+        }
+    })
+}
+
 /// Wrap `lintFile` JS callback as a normal Rust function.
 ///
 /// The returned function creates a `Uint8Array` referencing the memory of the given `Allocator`,
@@ -70,49 +103,54 @@ pub enum LintFileReturnValue {
 /// Use an `mpsc::channel` to wait for the result from JS side, and block current thread until `lintFile`
 /// completes execution.
 fn wrap_lint_file(cb: JsLintFileCb) -> ExternalLinterLintFileCb {
-    let cb = Arc::new(cb);
-    Arc::new(move |file_path: String, rule_ids: Vec<u32>, allocator: &Allocator| {
-        let cb = Arc::clone(&cb);
+    Box::new(
+        move |file_path: String,
+              rule_ids: Vec<u32>,
+              options_ids: Vec<u32>,
+              settings_json: String,
+              allocator: &Allocator| {
+            let (tx, rx) = channel();
 
-        let (tx, rx) = channel();
+            // SAFETY: This function is only called when an `ExternalLinter` exists.
+            // When that is the case, the `AllocatorPool` used to create `Allocator`s is created with
+            // `AllocatorPool::new_fixed_size`, so all `Allocator`s are created via `FixedSizeAllocator`.
+            // This is somewhat sketchy, as we don't have a type-level guarantee of this invariant,
+            // but it does hold at present.
+            // When we replace `bumpalo` with a custom allocator, we can close this soundness hole.
+            // TODO: Do that.
+            let (buffer_id, buffer) = unsafe { get_buffer(allocator) };
 
-        // SAFETY: This function is only called when an `ExternalLinter` exists.
-        // When that is the case, the `AllocatorPool` used to create `Allocator`s is created with
-        // `AllocatorPool::new_fixed_size`, so all `Allocator`s are created via `FixedSizeAllocator`.
-        // This is somewhat sketchy, as we don't have a type-level guarantee of this invariant,
-        // but it does hold at present.
-        // When we replace `bumpalo` with a custom allocator, we can close this soundness hole.
-        // TODO: Do that.
-        let (buffer_id, buffer) = unsafe { get_buffer(allocator) };
+            // Send data to JS
+            let status = cb.call_with_return_value(
+                FnArgs::from((file_path, buffer_id, buffer, rule_ids, options_ids, settings_json)),
+                ThreadsafeFunctionCallMode::NonBlocking,
+                move |result, _env| {
+                    let _ = match &result {
+                        Ok(r) => match serde_json::from_str::<LintFileReturnValue>(r) {
+                            Ok(v) => tx.send(Ok(v)),
+                            Err(_e) => {
+                                tx.send(Err("Failed to deserialize lint result".to_string()))
+                            }
+                        },
+                        Err(e) => tx.send(Err(e.to_string())),
+                    };
 
-        // Send data to JS
-        let status = cb.call_with_return_value(
-            FnArgs::from((file_path, buffer_id, buffer, rule_ids)),
-            ThreadsafeFunctionCallMode::NonBlocking,
-            move |result, _env| {
-                let _ = match &result {
-                    Ok(r) => match serde_json::from_str::<LintFileReturnValue>(r) {
-                        Ok(v) => tx.send(Ok(v)),
-                        Err(_e) => tx.send(Err("Failed to deserialize lint result".to_string())),
-                    },
-                    Err(e) => tx.send(Err(e.to_string())),
-                };
+                    result.map(|_| ())
+                },
+            );
 
-                result.map(|_| ())
-            },
-        );
+            assert!(status == Status::Ok, "Failed to schedule callback: {status:?}");
 
-        assert!(status == Status::Ok, "Failed to schedule callback: {status:?}");
-
-        match rx.recv() {
-            Ok(Ok(x)) => match x {
-                LintFileReturnValue::Success(diagnostics) => Ok(diagnostics),
-                LintFileReturnValue::Failure(err) => Err(err),
-            },
-            Ok(Err(err)) => panic!("Callback reported error: {err}"),
-            Err(err) => panic!("Callback did not respond: {err}"),
-        }
-    })
+            match rx.recv() {
+                Ok(Ok(x)) => match x {
+                    LintFileReturnValue::Success(diagnostics) => Ok(diagnostics),
+                    LintFileReturnValue::Failure(err) => Err(err),
+                },
+                Ok(Err(err)) => panic!("Callback reported error: {err}"),
+                Err(err) => panic!("Callback did not respond: {err}"),
+            }
+        },
+    )
 }
 
 /// Get buffer ID of the `Allocator` and, if it hasn't already been sent to JS,

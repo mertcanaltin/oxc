@@ -1,6 +1,6 @@
-commit: 4cc3d888
+commit: 99dcba5e
 
-Passed: 188/319
+Passed: 200/331
 
 # All Passed:
 * babel-plugin-transform-class-static-block
@@ -18,6 +18,7 @@ Passed: 188/319
 * babel-plugin-transform-react-jsx-self
 * babel-plugin-transform-react-jsx-source
 * regexp
+* plugin-tagged-template-transform
 
 
 # babel-plugin-transform-explicit-resource-management (2/4)
@@ -1146,12 +1147,13 @@ rebuilt        : ["babelHelpers", "dec"]
 
 * typescript/constructor/parameter/decoratorOnClassConstructorParameter4/input.ts
 
-  x Expected `,` but found `@`
+  x Expected `,` or `)` but found `@`
    ,-[tasks/transform_conformance/tests/legacy-decorators/test/fixtures/typescript/constructor/parameter/decoratorOnClassConstructorParameter4/input.ts:6:24]
  5 | class C {
  6 |     constructor(public @dec p: number) {}
-   :                        |
-   :                        `-- `,` expected
+   :                |       |
+   :                |       `-- `,` or `)` expected
+   :                `-- Opened here
  7 | }
    `----
 

@@ -4,6 +4,36 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.99.0] - 2025-11-24
+
+### 💥 BREAKING CHANGES
+
+- cbb27fd ast: [**BREAKING**] Add `TSGlobalDeclaration` type (#15712) (overlookmotel)
+
+### 🐛 Bug Fixes
+
+- 7c46a9e transformer/tagged-template-transform: Handle `\n` escape sequences (#15830) (Dunqing)
+
+### ⚡ Performance
+
+- b4b0ed8 transformer/typescript: Reverse order of checks (#15722) (overlookmotel)
+
+## [0.97.0] - 2025-11-11
+
+### 🚀 Features
+
+- 8d69661 allocator: Add `Address::from_ref` method (#15318) (overlookmotel)
+- 2c15353 transformer: Warn top level await usage if not supported (#14276) (Copilot)
+- aee6310 transformer: Add warning for arbitrary module namespace identifier names (#15035) (Copilot)
+
+### 🐛 Bug Fixes
+
+- 7a5c011 transformer: Convert enum numbers to strings in template literals (#15183) (Copilot)
+
+### 📚 Documentation
+
+- 4b904b1 transformer: Clarify `jsx.pure` option would affect JSX elements (#15376) (sapphi-red)
+
 ## [0.96.0] - 2025-10-30
 
 ### 🐛 Bug Fixes

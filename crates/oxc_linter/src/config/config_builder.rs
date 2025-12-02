@@ -6,6 +6,7 @@ use std::{
 use itertools::Itertools;
 use oxc_resolver::{ResolveOptions, Resolver};
 use rustc_hash::{FxHashMap, FxHashSet};
+use url::Url;
 
 use oxc_span::{CompactStr, format_compact_str};
 
@@ -16,7 +17,7 @@ use crate::{
         ESLintRule, OxlintOverrides, OxlintRules, overrides::OxlintOverride, plugins::LintPlugins,
     },
     external_linter::ExternalLinter,
-    external_plugin_store::{ExternalRuleId, ExternalRuleLookupError},
+    external_plugin_store::{ExternalOptionsId, ExternalRuleId, ExternalRuleLookupError},
     rules::RULES,
 };
 
@@ -29,7 +30,7 @@ use super::{
 #[must_use = "You dropped your builder without building a Linter! Did you mean to call .build()?"]
 pub struct ConfigStoreBuilder {
     pub(super) rules: FxHashMap<RuleEnum, AllowWarnDeny>,
-    pub(super) external_rules: FxHashMap<ExternalRuleId, AllowWarnDeny>,
+    pub(super) external_rules: FxHashMap<ExternalRuleId, (ExternalOptionsId, AllowWarnDeny)>,
     config: LintConfig,
     categories: OxlintCategories,
     overrides: OxlintOverrides,
@@ -137,7 +138,7 @@ impl ConfigStoreBuilder {
 
                 let (extends, extends_paths) = resolve_oxlintrc_config(extends_oxlintrc)?;
 
-                oxlintrc = oxlintrc.merge(extends);
+                oxlintrc = oxlintrc.merge(&extends);
                 extended_paths.extend(extends_paths);
             }
 
@@ -385,7 +386,7 @@ impl ConfigStoreBuilder {
     /// Returns [`ConfigBuilderError::UnknownRules`] if there are rules that could not be matched.
     pub fn build(
         mut self,
-        external_plugin_store: &ExternalPluginStore,
+        external_plugin_store: &mut ExternalPluginStore,
     ) -> Result<Config, ConfigBuilderError> {
         // When a plugin gets disabled before build(), rules for that plugin aren't removed until
         // with_filters() gets called. If the user never calls it, those now-undesired rules need
@@ -412,8 +413,14 @@ impl ConfigStoreBuilder {
             .collect();
         rules.sort_unstable_by_key(|(r, _)| r.id());
 
-        let mut external_rules: Vec<_> = self.external_rules.into_iter().collect();
-        external_rules.sort_unstable_by_key(|(r, _)| *r);
+        // Convert HashMap entries (ExternalRuleId -> (ExternalOptionsId, AllowWarnDeny))
+        // into Vec<(ExternalRuleId, ExternalOptionsId, AllowWarnDeny)> and sort by rule id.
+        let mut external_rules: Vec<_> = self
+            .external_rules
+            .into_iter()
+            .map(|(rule_id, (options_id, severity))| (rule_id, options_id, severity))
+            .collect();
+        external_rules.sort_unstable_by_key(|(r, _, _)| *r);
 
         Ok(Config::new(rules, external_rules, self.categories, self.config, resolved_overrides))
     }
@@ -421,7 +428,7 @@ impl ConfigStoreBuilder {
     fn resolve_overrides(
         &self,
         overrides: OxlintOverrides,
-        external_plugin_store: &ExternalPluginStore,
+        external_plugin_store: &mut ExternalPluginStore,
     ) -> Result<ResolvedOxlintOverrides, ExternalRuleLookupError> {
         let resolved = overrides
             .into_iter()
@@ -443,7 +450,11 @@ impl ConfigStoreBuilder {
 
                 // Convert to vectors
                 builtin_rules.extend(rules_map.into_iter());
-                external_rules.extend(external_rules_map.into_iter());
+                external_rules.extend(
+                    external_rules_map
+                        .into_iter()
+                        .map(|(rule_id, (options_id, severity))| (rule_id, options_id, severity)),
+                );
 
                 Ok(ResolvedOxlintOverride {
                     files: override_config.files,
@@ -530,25 +541,25 @@ impl ConfigStoreBuilder {
                 error: e.to_string(),
             }
         })?;
-        // TODO: We should support paths which are not valid UTF-8. How?
-        let plugin_path = resolved.full_path().to_str().unwrap().to_string();
+        let plugin_path = resolved.full_path();
 
         if external_plugin_store.is_plugin_registered(&plugin_path) {
             return Ok(());
         }
 
-        // Extract package name from package.json if available
+        // Extract package name from `package.json` if available
         let package_name = resolved.package_json().and_then(|pkg| pkg.name().map(String::from));
 
-        let result = {
-            let plugin_path = plugin_path.clone();
-            (external_linter.load_plugin)(plugin_path, package_name).map_err(|e| {
-                ConfigBuilderError::PluginLoadFailed {
-                    plugin_specifier: plugin_specifier.to_string(),
-                    error: e.to_string(),
-                }
-            })
-        }?;
+        // Convert path to a `file://...` URL, as required by `import(...)` on JS side.
+        // Note: `unwrap()` here is infallible as `plugin_path` is an absolute path.
+        let plugin_url = Url::from_file_path(&plugin_path).unwrap().as_str().to_string();
+
+        let result = (external_linter.load_plugin)(plugin_url, package_name).map_err(|e| {
+            ConfigBuilderError::PluginLoadFailed {
+                plugin_specifier: plugin_specifier.to_string(),
+                error: e.to_string(),
+            }
+        })?;
 
         match result {
             PluginLoadResult::Success { name, offset, rule_names } => {
@@ -813,10 +824,10 @@ mod test {
         let mut desired_plugins = LintPlugins::default();
         desired_plugins.set(LintPlugins::TYPESCRIPT, false);
 
-        let external_plugin_store = ExternalPluginStore::default();
+        let mut external_plugin_store = ExternalPluginStore::default();
         let linter = ConfigStoreBuilder::default()
             .with_builtin_plugins(desired_plugins)
-            .build(&external_plugin_store)
+            .build(&mut external_plugin_store)
             .unwrap();
         for (rule, _) in linter.base.rules.iter() {
             let name = rule.name();
@@ -1240,6 +1251,44 @@ mod test {
         assert!(config.rules().is_empty());
     }
 
+    #[test]
+    fn test_extends_overrides_precedence() {
+        // Test that current config's overrides take priority over extended config's overrides
+        // This is consistent with how base-level rules work (current overrides extended)
+
+        // Load the oxlintrc that extends a base config
+        let current_oxlintrc = Oxlintrc::from_file(&PathBuf::from(
+            "fixtures/extends_config/overrides/current_override.json",
+        ))
+        .unwrap();
+
+        // Build the config with from_oxlintrc which will handle extends
+        let mut external_plugin_store = ExternalPluginStore::default();
+        let builder = ConfigStoreBuilder::from_oxlintrc(
+            false, // start_empty = false to get default rules
+            current_oxlintrc,
+            None,
+            &mut external_plugin_store,
+        )
+        .unwrap();
+
+        let config = builder.build(&mut external_plugin_store).unwrap();
+
+        // Apply overrides for a foo.test.ts file (matches both overrides)
+        let resolved = config.apply_overrides(Path::new("foo.test.ts"));
+
+        // The no-const-assign rule should be "off" (disabled, not present in rules)
+        // because current config's override sets it to "off", which should take priority
+        // over the extended config's override which sets it to "error"
+        let no_const_assign_rule =
+            resolved.rules.iter().find(|(rule, _)| rule.name() == "no-const-assign");
+
+        assert!(
+            no_const_assign_rule.is_none(),
+            "no-const-assign should be disabled (off) by current config's override, not error from extended config"
+        );
+    }
+
     fn config_store_from_path(path: &str) -> Config {
         let mut external_plugin_store = ExternalPluginStore::default();
         ConfigStoreBuilder::from_oxlintrc(
@@ -1249,7 +1298,7 @@ mod test {
             &mut external_plugin_store,
         )
         .unwrap()
-        .build(&external_plugin_store)
+        .build(&mut external_plugin_store)
         .unwrap()
     }
 
@@ -1262,7 +1311,7 @@ mod test {
             &mut external_plugin_store,
         )
         .unwrap()
-        .build(&external_plugin_store)
+        .build(&mut external_plugin_store)
         .unwrap()
     }
 }

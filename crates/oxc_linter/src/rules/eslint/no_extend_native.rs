@@ -8,9 +8,13 @@ use oxc_span::{CompactStr, GetSpan};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::{AstNode, context::LintContext, rule::Rule};
+use crate::{
+    AstNode,
+    context::LintContext,
+    rule::{DefaultRuleConfig, Rule},
+};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Deserialize)]
 pub struct NoExtendNative(Box<NoExtendNativeConfig>);
 
 #[derive(Debug, Default, Clone, JsonSchema, Deserialize)]
@@ -76,18 +80,9 @@ declare_oxc_lint!(
 
 impl Rule for NoExtendNative {
     fn from_configuration(value: serde_json::Value) -> Self {
-        let obj = value.get(0);
-
-        Self(Box::new(NoExtendNativeConfig {
-            exceptions: obj
-                .and_then(|v| v.get("exceptions"))
-                .and_then(serde_json::Value::as_array)
-                .unwrap_or(&vec![])
-                .iter()
-                .filter_map(serde_json::Value::as_str)
-                .map(CompactStr::from)
-                .collect(),
-        }))
+        serde_json::from_value::<DefaultRuleConfig<NoExtendNative>>(value)
+            .unwrap_or_default()
+            .into_inner()
     }
 
     fn run_once(&self, ctx: &LintContext) {
@@ -150,8 +145,12 @@ fn get_define_property_call<'a>(
     for parent in ctx.nodes().ancestors(node.id()) {
         if let AstKind::CallExpression(call_expr) = parent.kind()
             && is_define_property_call(call_expr)
+            && let Some(first_arg) = call_expr.arguments.first()
         {
-            return Some(parent);
+            let arg_span = first_arg.span();
+            if arg_span.contains_inclusive(node.span()) {
+                return Some(parent);
+            }
         }
     }
     None
@@ -217,7 +216,6 @@ fn get_prototype_property_accessed<'a>(
         return None;
     };
     let parent = ctx.nodes().parent_node(node.id());
-    let mut prototype_node = Some(parent);
     match parent.kind() {
         prop_access_expr if prop_access_expr.is_member_expression_kind() => {
             let prop_name = prop_access_expr
@@ -226,14 +224,23 @@ fn get_prototype_property_accessed<'a>(
             if prop_name != "prototype" {
                 return None;
             }
+            // Check if this member expression is wrapped in a ChainExpression
             let grandparent_node = ctx.nodes().parent_node(parent.id());
+            let result_node = if let AstKind::ChainExpression(_) = grandparent_node.kind() {
+                // Return the ChainExpression
+                grandparent_node
+            } else {
+                // Return the MemberExpression
+                parent
+            };
 
-            if let AstKind::ChainExpression(_) = grandparent_node.kind() {
-                let grandparent_parent = ctx.nodes().parent_node(grandparent_node.id());
-                prototype_node = Some(grandparent_parent);
+            // Check if the result is wrapped in parentheses
+            let great_grandparent_node = ctx.nodes().parent_node(result_node.id());
+            if let AstKind::ParenthesizedExpression(_) = great_grandparent_node.kind() {
+                Some(great_grandparent_node)
+            } else {
+                Some(result_node)
             }
-
-            prototype_node
         }
         _ => None,
     }

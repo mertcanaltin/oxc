@@ -60,10 +60,10 @@ pub use crate::{
     },
     context::{ContextSubHost, LintContext},
     external_linter::{
-        ExternalLinter, ExternalLinterLintFileCb, ExternalLinterLoadPluginCb, JsFix,
-        LintFileResult, PluginLoadResult,
+        ExternalLinter, ExternalLinterLintFileCb, ExternalLinterLoadPluginCb,
+        ExternalLinterSetupConfigsCb, JsFix, LintFileResult, PluginLoadResult,
     },
-    external_plugin_store::{ExternalPluginStore, ExternalRuleId},
+    external_plugin_store::{ExternalOptionsId, ExternalPluginStore, ExternalRuleId},
     fixer::{Fix, FixKind, Message, PossibleFixes},
     frameworks::FrameworkFlags,
     lint_runner::{DirectivesStore, LintRunner, LintRunnerBuilder},
@@ -72,7 +72,7 @@ pub use crate::{
     options::LintOptions,
     options::{AllowWarnDeny, InvalidFilterKind, LintFilter, LintFilterKind},
     rule::{RuleCategory, RuleFixMeta, RuleMeta, RuleRunFunctionsImplemented, RuleRunner},
-    service::{LintService, LintServiceOptions, RuntimeFileSystem},
+    service::{LintService, LintServiceOptions, OsFileSystem, RuntimeFileSystem},
     tsgolint::TsGoLintState,
     utils::{read_to_arena_str, read_to_string},
 };
@@ -94,7 +94,7 @@ fn size_asserts() {
     assert_eq!(size_of::<RuleEnum>(), 16);
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[expect(clippy::struct_field_names)]
 pub struct Linter {
     options: LintOptions,
@@ -384,7 +384,7 @@ impl Linter {
 
     fn run_external_rules<'a>(
         &self,
-        external_rules: &[(ExternalRuleId, AllowWarnDeny)],
+        external_rules: &[(ExternalRuleId, ExternalOptionsId, AllowWarnDeny)],
         path: &Path,
         ctx_host: &mut Rc<ContextHost<'a>>,
         allocator: &'a Allocator,
@@ -448,10 +448,25 @@ impl Linter {
         // for a `RawTransferMetadata`. `end_ptr` is aligned for `RawTransferMetadata`.
         unsafe { metadata_ptr.write(metadata) };
 
-        // Pass AST and rule IDs to JS
+        let settings_json = match &ctx_host.settings().json {
+            Some(json) => serde_json::to_string(&json).unwrap_or_else(|e| {
+                let path = path.to_string_lossy();
+                let message = format!("Error serializing settings.\nFile path: {path}\n{e}");
+                ctx_host.push_diagnostic(Message::new(
+                    OxcDiagnostic::error(message),
+                    PossibleFixes::None,
+                ));
+                "{}".to_string()
+            }),
+            None => "{}".to_string(),
+        };
+
+        // Pass AST and rule IDs + options IDs to JS
         let result = (external_linter.lint_file)(
-            path.to_str().unwrap().to_string(),
-            external_rules.iter().map(|(rule_id, _)| rule_id.raw()).collect(),
+            path.to_string_lossy().into_owned(),
+            external_rules.iter().map(|(rule_id, _, _)| rule_id.raw()).collect(),
+            external_rules.iter().map(|(_, options_id, _)| options_id.raw()).collect(),
+            settings_json,
             allocator,
         );
         match result {
@@ -464,7 +479,7 @@ impl Linter {
                     let mut span = Span::new(diagnostic.start, diagnostic.end);
                     span_converter.convert_span_back(&mut span);
 
-                    let (external_rule_id, severity) =
+                    let (external_rule_id, _options_id, severity) =
                         external_rules[diagnostic.rule_index as usize];
                     let (plugin_name, rule_name) =
                         self.config.resolve_plugin_rule_names(external_rule_id);
@@ -541,7 +556,7 @@ impl Linter {
 /// Any changes made here also need to be made there.
 /// `oxc_ast_tools` checks that the 2 copies are identical.
 #[ast]
-struct RawTransferMetadata2 {
+pub struct RawTransferMetadata2 {
     /// Offset of `Program` within buffer.
     /// Note: In `RawTransferMetadata` (in `napi/parser`), this field is offset of `RawTransferData`,
     /// but here it's offset of `Program`.
@@ -566,16 +581,12 @@ mod test {
 
     use project_root::get_project_root;
 
-    use super::Oxlintrc;
+    use crate::Oxlintrc;
 
     #[test]
     fn test_schema_json() {
         let path = get_project_root().unwrap().join("npm/oxlint/configuration_schema.json");
-        let mut schema = schemars::schema_for!(Oxlintrc);
-        // setting `allowComments` to true to allow comments in JSON schema files
-        // https://github.com/microsoft/vscode-json-languageservice/blob/356d5dd980d49c6ac09ec8446614a6f94016dcea/src/jsonLanguageTypes.ts#L127-L131
-        schema.schema.extensions.insert("allowComments".to_string(), serde_json::Value::Bool(true));
-        let json = serde_json::to_string_pretty(&schema).unwrap();
+        let json = Oxlintrc::generate_schema_json();
         let existing_json = fs::read_to_string(&path).unwrap_or_default();
         if existing_json.trim() != json.trim() {
             std::fs::write(&path, &json).unwrap();

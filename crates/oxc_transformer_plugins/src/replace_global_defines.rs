@@ -2,7 +2,7 @@ use std::{cmp::Ordering, sync::Arc};
 
 use rustc_hash::FxHashSet;
 
-use oxc_allocator::{Address, Allocator, GetAddress};
+use oxc_allocator::{Address, Allocator, GetAddress, UnstableAddress};
 use oxc_ast::ast::*;
 use oxc_ast_visit::{VisitMut, walk_mut};
 use oxc_diagnostics::OxcDiagnostic;
@@ -260,9 +260,8 @@ impl<'a> Traverse<'a, ()> for ReplaceGlobalDefines<'a> {
         }
         if self.replace_define_with_assignment_expr(node, ctx) {
             self.mark_as_changed();
-            // `AssignmentExpression` is stored in a `Box`, so we can use `from_ptr` to get
-            // the stable address
-            self.ast_node_lock = Some(Address::from_ptr(node));
+            // `AssignmentExpression` is stored in a `Box`, so has a stable memory location
+            self.ast_node_lock = Some(node.unstable_address());
         }
     }
 
@@ -271,7 +270,8 @@ impl<'a> Traverse<'a, ()> for ReplaceGlobalDefines<'a> {
         node: &mut AssignmentExpression<'a>,
         _: &mut TraverseCtx<'a>,
     ) {
-        if self.ast_node_lock == Some(Address::from_ptr(node)) {
+        // `AssignmentExpression` is stored in a `Box`, so has a stable memory location
+        if self.ast_node_lock == Some(node.unstable_address()) {
             self.ast_node_lock = None;
         }
     }

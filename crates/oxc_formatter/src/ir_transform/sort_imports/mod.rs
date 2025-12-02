@@ -1,23 +1,34 @@
-mod import_unit;
+mod compute_metadata;
+mod group_config;
+pub mod options;
 mod partitioned_chunk;
+mod sortable_imports;
 mod source_line;
+
+use oxc_allocator::{Allocator, Vec as ArenaVec};
 
 use crate::{
     formatter::format_element::{FormatElement, LineMode, document::Document},
-    options,
+    ir_transform::sort_imports::{
+        group_config::{GroupName, parse_groups_from_strings},
+        partitioned_chunk::PartitionedChunk,
+        source_line::SourceLine,
+    },
 };
 
-use import_unit::SortableImport;
-use partitioned_chunk::PartitionedChunk;
-use source_line::SourceLine;
-
+/// An IR transform that sorts import statements according to specified options.
+/// Heavily inspired by ESLint's `@perfectionist/sort-imports` rule.
+/// <https://perfectionist.dev/rules/sort-imports>
 pub struct SortImportsTransform {
-    options: options::SortImports,
+    options: options::SortImportsOptions,
+    groups: Vec<Vec<GroupName>>,
 }
 
 impl SortImportsTransform {
-    pub fn new(options: options::SortImports) -> Self {
-        Self { options }
+    pub fn new(options: options::SortImportsOptions) -> Self {
+        // Parse string based groups into our internal representation for performance
+        let groups = parse_groups_from_strings(&options.groups);
+        Self { options, groups }
     }
 
     /// Transform the given `Document` by sorting import statements according to the specified options.
@@ -26,7 +37,7 @@ impl SortImportsTransform {
     // It means that:
     // - There is no redundant spaces, no consecutive line breaks, etc...
     // - Last element is always `FormatElement::Line(Hard)`.
-    pub fn transform<'a>(&self, document: &Document<'a>) -> Document<'a> {
+    pub fn transform<'a>(&self, document: &Document<'a>, allocator: &'a Allocator) -> Document<'a> {
         // Early return for empty files
         if document.len() == 1 && matches!(document[0], FormatElement::Line(LineMode::Hard)) {
             return document.clone();
@@ -54,7 +65,7 @@ impl SortImportsTransform {
         // And this implementation is based on the following assumptions:
         // - Only `Line(Hard|Empty)` is used for joining `Program.body` in the output
         // - `Line(Hard|Empty)` does not appear inside an `ImportDeclaration` formatting
-        //   - In case of this, we should check `Tag::StartLabelled(JsLabels::ImportDeclaration)`
+        //   - If this is the case, we should check `Tag::StartLabelled(JsLabels::ImportDeclaration)`
         let mut lines = vec![];
         let mut current_line_start = 0;
         for (idx, el) in prev_elements.iter().enumerate() {
@@ -82,6 +93,10 @@ impl SortImportsTransform {
         }
 
         // Next, partition `SourceLine`s into `PartitionedChunk`s.
+        //
+        // Chunking is done by detecting boundaries.
+        // By default, only non-import lines are considered boundaries.
+        // And depending on options, empty lines and comment-only lines can also be boundaries.
         //
         // Within each chunk, we will sort import lines.
         // e.g.
@@ -136,10 +151,10 @@ impl SortImportsTransform {
 
         // Finally, sort import lines within each chunk.
         // After sorting, flatten everything back to `FormatElement`s.
-        let mut next_elements = vec![];
+        let mut next_elements = ArenaVec::with_capacity_in(prev_elements.len(), allocator);
 
         let mut chunks_iter = chunks.into_iter().enumerate().peekable();
-        while let Some((idx, chunk)) = chunks_iter.next() {
+        while let Some((_idx, chunk)) = chunks_iter.next() {
             match chunk {
                 // Boundary chunks: Just output as-is
                 PartitionedChunk::Boundary(line) => {
@@ -166,16 +181,37 @@ impl SortImportsTransform {
                     //
                     // const YET_ANOTHER_BOUNDARY = true;
                     // ```
-                    let (mut import_units, trailing_lines) = chunk.into_import_units(prev_elements);
-                    import_units.sort_imports(prev_elements, self.options);
+                    let (sorted_imports, trailing_lines) =
+                        chunk.into_sorted_import_units(&self.groups, &self.options);
 
                     // Output sorted import units
-                    let preserve_empty_line = self.options.partition_by_newline;
-                    for SortableImport { leading_lines, import_line } in import_units {
-                        for line in leading_lines {
-                            line.write(prev_elements, &mut next_elements, preserve_empty_line);
+                    let mut prev_group_idx = None;
+                    let mut prev_was_ignored = false;
+                    for sorted_import in sorted_imports {
+                        // Insert newline when:
+                        // 1. Group changes
+                        // 2. Previous import was not ignored (don't insert after ignored)
+                        if self.options.newlines_between {
+                            let current_group_idx = sorted_import.group_idx;
+                            if let Some(prev_idx) = prev_group_idx
+                                && prev_idx != current_group_idx
+                                && !prev_was_ignored
+                            {
+                                next_elements.push(FormatElement::Line(LineMode::Empty));
+                            }
+                            prev_group_idx = Some(current_group_idx);
+                            prev_was_ignored = sorted_import.is_ignored;
                         }
-                        import_line.write(prev_elements, &mut next_elements, false);
+
+                        // Output leading lines and import line
+                        for line in sorted_import.leading_lines {
+                            line.write(
+                                prev_elements,
+                                &mut next_elements,
+                                self.options.partition_by_newline,
+                            );
+                        }
+                        sorted_import.import_line.write(prev_elements, &mut next_elements, false);
                     }
                     // And output trailing lines
                     //
@@ -203,9 +239,11 @@ impl SortImportsTransform {
                     for (idx, line) in trailing_lines.iter().enumerate() {
                         let is_last_empty_line =
                             idx == trailing_lines.len() - 1 && matches!(line, SourceLine::Empty);
-                        let preserve_empty_line =
-                            if is_last_empty_line { next_chunk_is_boundary } else { true };
-                        line.write(prev_elements, &mut next_elements, preserve_empty_line);
+                        line.write(
+                            prev_elements,
+                            &mut next_elements,
+                            if is_last_empty_line { next_chunk_is_boundary } else { true },
+                        );
                     }
                 }
             }

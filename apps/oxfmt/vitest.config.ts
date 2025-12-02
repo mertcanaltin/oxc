@@ -1,7 +1,12 @@
-import { configDefaults, defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    exclude: [...configDefaults.exclude, 'fixtures/**', 'test/fixtures/**'],
+    exclude: [...configDefaults.exclude],
+    snapshotFormat: {
+      escapeString: false,
+      printBasicPrototype: false,
+    },
+    snapshotSerializers: [],
   },
 });

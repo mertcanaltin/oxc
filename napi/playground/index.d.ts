@@ -97,9 +97,7 @@ export interface OxcFormatterOptions {
   objectWrap?: string
   /** Put each attribute on its own line (default: false) */
   singleAttributePerLine?: boolean
-  /** Operator position: "start" | "end" (default: "end") */
-  experimentalOperatorPosition?: string
-  /** Sort imports configuration */
+  /** Sort imports configuration (default: None) */
   experimentalSortImports?: OxcSortImportsOptions
 }
 
@@ -168,6 +166,12 @@ export interface OxcSortImportsOptions {
   order?: string
   /** Ignore case when sorting (default: true) */
   ignoreCase?: boolean
+  /** Add newlines between import groups (default: true) */
+  newlinesBetween?: boolean
+  /** Pattern prefixes for internal imports */
+  internalPattern?: Array<string>
+  /** Custom groups of imports */
+  groups?: Array<Array<string>>
 }
 
 export interface OxcTransformerOptions {

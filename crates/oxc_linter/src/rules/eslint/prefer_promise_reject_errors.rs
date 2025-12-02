@@ -5,21 +5,23 @@ use oxc_ast::{
 };
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_macros::declare_oxc_lint;
-use oxc_span::Span;
+use oxc_span::{GetSpan, Span};
 use schemars::JsonSchema;
+use serde::Deserialize;
+use serde_json::Value;
 
 use crate::{
     AstNode,
     ast_util::{could_be_error, is_method_call},
     context::LintContext,
-    rule::Rule,
+    rule::{DefaultRuleConfig, Rule},
 };
 
 fn prefer_promise_reject_errors_diagnostic(span: Span) -> OxcDiagnostic {
     OxcDiagnostic::warn("Expected the Promise rejection reason to be an Error").with_label(span)
 }
 
-#[derive(Debug, Default, Clone, JsonSchema)]
+#[derive(Debug, Default, Clone, JsonSchema, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PreferPromiseRejectErrors {
     /// Whether to allow calls to `Promise.reject()` with no arguments.
@@ -79,12 +81,10 @@ declare_oxc_lint!(
 );
 
 impl Rule for PreferPromiseRejectErrors {
-    fn from_configuration(value: serde_json::Value) -> Self {
-        let allow_empty_reject = value.get(0).is_some_and(|v| {
-            v.get("allowEmptyReject").is_some_and(|b| b.as_bool().unwrap_or(false))
-        });
-
-        Self { allow_empty_reject }
+    fn from_configuration(value: Value) -> Self {
+        serde_json::from_value::<DefaultRuleConfig<PreferPromiseRejectErrors>>(value)
+            .unwrap_or_default()
+            .into_inner()
     }
 
     fn run<'a>(&self, node: &AstNode<'a>, ctx: &LintContext<'a>) {
@@ -153,7 +153,11 @@ fn check_reject_in_function(
         ctx.symbol_references(reject_arg.symbol_id()).for_each(|reference| {
             if let AstKind::CallExpression(call_expr) = ctx.nodes().parent_kind(reference.node_id())
             {
-                check_reject_call(call_expr, ctx, allow_empty_reject);
+                let ref_node = ctx.nodes().get_node(reference.node_id());
+
+                if call_expr.callee.span().contains_inclusive(ref_node.span()) {
+                    check_reject_call(call_expr, ctx, allow_empty_reject);
+                }
             }
         });
         return;

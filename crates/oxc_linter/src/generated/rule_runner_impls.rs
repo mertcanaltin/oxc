@@ -246,10 +246,8 @@ impl RuleRunner for crate::rules::eslint::no_console::NoConsole {
 }
 
 impl RuleRunner for crate::rules::eslint::no_const_assign::NoConstAssign {
-    const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
-        AstType::BindingRestElement,
-        AstType::VariableDeclarator,
-    ]));
+    const NODE_TYPES: Option<&AstTypesBitset> =
+        Some(&AstTypesBitset::from_types(&[AstType::VariableDeclarator]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 
@@ -767,7 +765,6 @@ impl RuleRunner for crate::rules::eslint::no_unsafe_negation::NoUnsafeNegation {
 
 impl RuleRunner for crate::rules::eslint::no_unsafe_optional_chaining::NoUnsafeOptionalChaining {
     const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
-        AstType::Argument,
         AstType::ArrayExpression,
         AstType::AssignmentExpression,
         AstType::AssignmentPattern,
@@ -2225,8 +2222,11 @@ impl RuleRunner for crate::rules::react::jsx_handler_names::JsxHandlerNames {
 }
 
 impl RuleRunner for crate::rules::react::jsx_key::JsxKey {
-    const NODE_TYPES: Option<&AstTypesBitset> =
-        Some(&AstTypesBitset::from_types(&[AstType::JSXElement, AstType::JSXFragment]));
+    const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
+        AstType::ArrayExpression,
+        AstType::JSXElement,
+        AstType::JSXFragment,
+    ]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 
@@ -2394,6 +2394,14 @@ impl RuleRunner for crate::rules::react::rules_of_hooks::RulesOfHooks {
 impl RuleRunner for crate::rules::react::self_closing_comp::SelfClosingComp {
     const NODE_TYPES: Option<&AstTypesBitset> =
         Some(&AstTypesBitset::from_types(&[AstType::JSXElement]));
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
+impl RuleRunner for crate::rules::react::state_in_constructor::StateInConstructor {
+    const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
+        AstType::AssignmentExpression,
+        AstType::PropertyDefinition,
+    ]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 
@@ -2719,6 +2727,29 @@ impl RuleRunner for crate::rules::typescript::no_require_imports::NoRequireImpor
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 
+impl RuleRunner for crate::rules::typescript::no_restricted_types::NoRestrictedTypes {
+    const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
+        AstType::TSAnyKeyword,
+        AstType::TSBigIntKeyword,
+        AstType::TSBooleanKeyword,
+        AstType::TSClassImplements,
+        AstType::TSInterfaceHeritage,
+        AstType::TSNeverKeyword,
+        AstType::TSNullKeyword,
+        AstType::TSNumberKeyword,
+        AstType::TSObjectKeyword,
+        AstType::TSStringKeyword,
+        AstType::TSSymbolKeyword,
+        AstType::TSTupleType,
+        AstType::TSTypeLiteral,
+        AstType::TSTypeReference,
+        AstType::TSUndefinedKeyword,
+        AstType::TSUnknownKeyword,
+        AstType::TSVoidKeyword,
+    ]));
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
 impl RuleRunner for crate::rules::typescript::no_this_alias::NoThisAlias {
     const NODE_TYPES: Option<&AstTypesBitset> = Some(&AstTypesBitset::from_types(&[
         AstType::AssignmentExpression,
@@ -2883,6 +2914,11 @@ impl RuleRunner for crate::rules::typescript::prefer_function_type::PreferFuncti
         AstType::TSTypeAnnotation,
     ]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
+impl RuleRunner for crate::rules::typescript::prefer_includes::PreferIncludes {
+    const NODE_TYPES: Option<&AstTypesBitset> = None;
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Unknown;
 }
 
 impl RuleRunner for crate::rules::typescript::prefer_literal_enum_member::PreferLiteralEnumMember {
@@ -3341,6 +3377,14 @@ impl RuleRunner for crate::rules::unicorn::no_unreadable_iife::NoUnreadableIife 
 }
 
 impl RuleRunner
+    for crate::rules::unicorn::no_useless_collection_argument::NoUselessCollectionArgument
+{
+    const NODE_TYPES: Option<&AstTypesBitset> =
+        Some(&AstTypesBitset::from_types(&[AstType::NewExpression]));
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
+impl RuleRunner
     for crate::rules::unicorn::no_useless_error_capture_stack_trace::NoUselessErrorCaptureStackTrace
 {
     const NODE_TYPES: Option<&AstTypesBitset> =
@@ -3451,6 +3495,12 @@ impl RuleRunner for crate::rules::unicorn::prefer_at::PreferAt {
         AstType::CallExpression,
         AstType::ComputedMemberExpression,
     ]));
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
+impl RuleRunner for crate::rules::unicorn::prefer_bigint_literals::PreferBigintLiterals {
+    const NODE_TYPES: Option<&AstTypesBitset> =
+        Some(&AstTypesBitset::from_types(&[AstType::CallExpression]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 
@@ -3636,6 +3686,12 @@ impl RuleRunner for crate::rules::unicorn::prefer_reflect_apply::PreferReflectAp
 impl RuleRunner for crate::rules::unicorn::prefer_regexp_test::PreferRegexpTest {
     const NODE_TYPES: Option<&AstTypesBitset> =
         Some(&AstTypesBitset::from_types(&[AstType::CallExpression]));
+    const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
+}
+
+impl RuleRunner for crate::rules::unicorn::prefer_response_static_json::PreferResponseStaticJson {
+    const NODE_TYPES: Option<&AstTypesBitset> =
+        Some(&AstTypesBitset::from_types(&[AstType::NewExpression]));
     const RUN_FUNCTIONS: RuleRunFunctionsImplemented = RuleRunFunctionsImplemented::Run;
 }
 

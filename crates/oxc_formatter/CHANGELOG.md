@@ -4,6 +4,121 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0).
 
+## [0.16.0] - 2025-12-01
+
+### 💥 BREAKING CHANGES
+
+- 74cf572 ast: [**BREAKING**] Make `source` field of `TSImportType` a `StringLiteral` (#16114) (copilot-swe-agent)
+- 43156ae ast: [**BREAKING**] Rename `TSImportType` `argument` field to `source` (#16110) (overlookmotel)
+
+### 🚀 Features
+
+- 862bdf7 oxfmt: Detect unsupported experimental options (take2) (#16088) (leaysgur)
+
+### 🐛 Bug Fixes
+
+- 75ac90c formatter: Comments in call arguments should be printed as-is (#16327) (Dunqing)
+- fd77568 formatter: Don't wrap parenthesis for yield expression if there is no leading comment (#16326) (Dunqing)
+- 8ccfb06 formatter: Should indent class extends and interface heritage when it is a member expression without type arguments (#16323) (Dunqing)
+- 2b8f982 formatter: JSX text wrapping incorrect (#16318) (Dunqing)
+- f3ffebe formatter: Should indent variable declarator if there is a trailing comment (#16243) (Dunqing)
+- 31d3186 formatter: Incorrect handling of directives with comments (#16235) (Dunqing)
+- ac8fcaf formatter: Add parens for new: private field expr (#16312) (leaysgur)
+- 380a0af formatter: Incorrect printing of class binding trailing comments (#16234) (Dunqing)
+- 0ca8154 formatter: Incorrect printing of trailing comments of callee when the call arguments are empty (#16232) (Dunqing)
+- ac3a92e formatter: Print comment in ternary jsx (#16224) (leaysgur)
+- e3a7388 formatter: Fix parens for static member chain (#16229) (leaysgur)
+- 55334c3 formatter: Incorrect printing of dangling comments in the if statement (#16228) (Dunqing)
+- 9096a63 formatter: Correct printing of trailing comments after the semicolon for class properties (#16225) (Dunqing)
+- 75fd568 formatter: Inconsistent union type output between two runs (#16222) (Dunqing)
+- cd70484 formatter: Should not add a hard space before function body (#16221) (Dunqing)
+- 9097167 formatter: Incorrect printing of union types with comments (#16205) (Dunqing)
+- 79b78b3 formatter: Template literal element should not be indented (#16189) (Dunqing)
+- 48d6ed2 formatter: Nested assignment pattern should not expand outer object pattern (#16160) (Dunqing)
+- 8f4137d formatter: Output is incorrect when using comments inside JSX which is the right hand-side of `LogicalExpression` (#16156) (Dunqing)
+- 85c3a10 formatter/sort_imports: Handle internal prefixes correctly (#16128) (leaysgur)
+- 889d2e7 formatter: Handle poor layout for grouped call arguments (#16093) (Dunqing)
+- 14b0a6a oxfmt: Fix JS-ish file detection (#16092) (leaysgur)
+- 9706a1a oxfmt: Ignore unsupported options (#16085) (leaysgur)
+
+## [0.15.0] - 2025-11-24
+
+### 💥 BREAKING CHANGES
+
+- a937890 formatter: [**BREAKING**] Default to `lineWidth: 100` (#15933) (leaysgur)
+- 03d5f5a formatter/sort-imports: [**BREAKING**] Change default order to `natural` with `natord` crate (#15828) (leaysgur)
+- cbb27fd ast: [**BREAKING**] Add `TSGlobalDeclaration` type (#15712) (overlookmotel)
+
+### 🚀 Features
+
+- 7818e22 formatter/sort-imports: Support `options.groups` (#15831) (leaysgur)
+
+### 🐛 Bug Fixes
+
+- 4817486 formatter: Revert  `FormatElement::BestFitting` printing logic (#16028) (Dunqing)
+- 5562dd6 formatter: Incorrect formatting method chain with trailing comments (#16027) (Dunqing)
+- 6d14c8b formatter: Comments in export class decorators are printing incorrectly (#15897) (Dunqing)
+- 683c764 formatter: Correct a few minor mismatched typescript tests (#15894) (Dunqing)
+- c11cc07 formatter: Improve formatting for default type on type parameters (#15893) (Dunqing)
+- 0bff596 formatter: Handle JSX expresssion dangling comment (#15890) (leaysgur)
+- 16a9dc8 formatter: Inconsistent printing of class extends and interface extends (#15892) (Dunqing)
+- 300b496 formatter: Inconsistent CallExpression and NewExpression around member chain and logical expression (#15858) (Dunqing)
+
+### ⚡ Performance
+
+- 65174cc formatter: Reduce the size of `TextWidth` to 4 byte (#15827) (Dunqing)
+- 4fe3aac formatter: Use `ArenaVec` and `ArenaBox` (#15420) (Dunqing)
+
+## [0.14.0] - 2025-11-17
+
+### 🚀 Features
+
+- 84de1ca oxlint,oxfmt: Allow comments and also commas for vscode-json-ls (#15612) (leaysgur)
+- 25a0163 formatter/sort_imports: Sort imports by `Array<Array<string>>` groups (#15578) (leaysgur)
+
+### 🐛 Bug Fixes
+
+- bf20cf5 formatter: `CRLF` issue in the member chain (#15764) (Dunqing)
+- 5d688a0 formatter: Measuring multiline text in `fits_text` is incorrect (#15762) (Dunqing)
+- e306958 formatter: Regression case for test call (#15760) (Dunqing)
+- c42d983 formatter: Re-fix all cases that fail after `AstNode::Argument` was removed (#15676) (Dunqing)
+
+### ⚡ Performance
+
+- 128e186 formatter/sort_imports: Precompute import metadata (#15580) (leaysgur)
+- cd31cc1 formatter/sort_imports: Use `Vec::with_capacity` for `next_elements` (#15579) (leaysgur)
+
+## [0.12.0] - 2025-11-10
+
+### 🚀 Features
+
+- 33ad374 oxfmt: Disable embedded formatting by default for alpha (#15402) (leaysgur)
+- 5708126 formatter/sort_imports: Add `options.newlinesBetween` (#15369) (leaysgur)
+- 2dfc3bd formatter: Remove `Tag::StartVerbatim` and `Tag::EndVerbatim` (#15370) (Dunqing)
+- 88c7530 formatter: Remove `FormatElement::LocatedTokenText` (#15367) (Dunqing)
+
+### 🐛 Bug Fixes
+
+- d32d22e formatter: Correct `FormatElement` size check (#15461) (Dunqing)
+- b0f43f9 formatter: Test call difference (#15356) (Dunqing)
+- 01f20f3 formatter: Incorrect comment checking logic for grouping argument (#15354) (Dunqing)
+
+### ⚡ Performance
+
+- f4b75b6 formatter: Pre-allocate enough space for the FormatElement buffer (#15422) (Dunqing)
+- 5a61189 formatter: Avoid unnecessary allocation for `BinaryLikeExpression` (#15467) (Dunqing)
+- 064f835 formatter: Optimize printing call arguments (#15464) (Dunqing)
+- 29f35b2 formatter: Reuse previous indent stack in `FitsMeasurer` (#15416) (Dunqing)
+- 2515045 formatter: Use CodeBuffer's built-in print_indent to print indentation (#15406) (Dunqing)
+- 681607b formatter: Check the `Text` to see whether it has multiple lines based on its width (#15405) (Dunqing)
+- b92deb4 formatter: Replace String buffer with byte-oriented CodeBuffer (#14752) (Boshen)
+- 963b87f formatter: Add `text_without_whitespace` for text that can never have whitespace (#15403) (Dunqing)
+- f30ce4b formatter: Optimize formatting literal string (#15380) (Dunqing)
+- 8f25a0e formatter: Memorize text width for `FormatElement::Text` (#15372) (Dunqing)
+- f913543 formatter: Avoid allocation for `SyntaxTokenCowSlice` (#15366) (Dunqing)
+- 98c9234 formatter: Optimize `FormatElement::Token` printing (#15365) (Dunqing)
+
+
 ## [0.10.0] - 2025-11-04
 
 ### 🚀 Features

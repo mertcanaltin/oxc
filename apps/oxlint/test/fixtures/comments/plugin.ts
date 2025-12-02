@@ -1,14 +1,17 @@
-import assert from 'node:assert';
+import assert from "node:assert";
 
-import type { Comment, Plugin, Rule } from '../../../dist/index.js';
+import type { Comment, Plugin, Rule } from "#oxlint";
 
 function formatComments(comments: Comment[]): string {
-  let text = `${comments.length} comment${comments.length === 1 ? '' : 's'}`;
+  let text = `${comments.length} comment${comments.length === 1 ? "" : "s"}`;
   if (comments.length > 0) {
-    text += '\n';
+    text += "\n";
     text += comments
-      .map((c, i) => `  [${i}] ${c.type}: ${JSON.stringify(c.value)} at [${c.range[0]}, ${c.range[1]}]`)
-      .join('\n');
+      .map(
+        (c, i) =>
+          `  [${i}] ${c.type}: ${JSON.stringify(c.value)} at [${c.range[0]}, ${c.range[1]}]`,
+      )
+      .join("\n");
   }
   return text;
 }
@@ -24,19 +27,21 @@ const testCommentsRule: Rule = {
     });
 
     const [, topLevelVariable2, topLevelFunctionExport] = ast.body;
-    assert(topLevelFunctionExport.type === 'ExportNamedDeclaration');
+    assert(topLevelFunctionExport.type === "ExportNamedDeclaration");
     const topLevelFunction = topLevelFunctionExport.declaration;
-    assert(topLevelFunction.type === 'FunctionDeclaration');
+    assert(topLevelFunction?.type === "FunctionDeclaration");
 
     context.report({
-      message: 'commentsExistBetween(topLevelVariable2, topLevelFunction): ' +
+      message:
+        "commentsExistBetween(topLevelVariable2, topLevelFunction): " +
         sourceCode.commentsExistBetween(topLevelVariable2, topLevelFunction),
       node: topLevelVariable2,
     });
 
     // Test `commentsExistBetween` returns `false` when start node is after end node
     context.report({
-      message: 'commentsExistBetween(topLevelFunction, topLevelVariable2): ' +
+      message:
+        "commentsExistBetween(topLevelFunction, topLevelVariable2): " +
         sourceCode.commentsExistBetween(topLevelFunction, topLevelVariable2),
       node: topLevelFunction,
     });
@@ -46,11 +51,12 @@ const testCommentsRule: Rule = {
         const { declarations } = node;
         assert(declarations.length >= 1);
         const { id, init } = declarations[0];
-        assert(id.type === 'Identifier');
+        assert(id.type === "Identifier");
         assert(init !== null);
 
         context.report({
-          message: `VariableDeclaration(${id.name}):\n` +
+          message:
+            `VariableDeclaration(${id.name}):\n` +
             `getCommentsBefore: ${formatComments(sourceCode.getCommentsBefore(node))}\n` +
             `getCommentsInside: ${formatComments(sourceCode.getCommentsInside(node))}\n` +
             `getCommentsAfter: ${formatComments(sourceCode.getCommentsAfter(node))}\n` +
@@ -60,7 +66,8 @@ const testCommentsRule: Rule = {
       },
       FunctionDeclaration(node) {
         context.report({
-          message: `FunctionDeclaration(${node.id.name}):\n` +
+          message:
+            `FunctionDeclaration(${node.id?.name}):\n` +
             `getCommentsBefore: ${formatComments(sourceCode.getCommentsBefore(node))}\n` +
             `getCommentsInside: ${formatComments(sourceCode.getCommentsInside(node))}\n` +
             `getCommentsAfter: ${formatComments(sourceCode.getCommentsAfter(node))}`,
@@ -73,10 +80,10 @@ const testCommentsRule: Rule = {
 
 const plugin: Plugin = {
   meta: {
-    name: 'test-comments',
+    name: "test-comments",
   },
   rules: {
-    'test-comments': testCommentsRule,
+    "test-comments": testCommentsRule,
   },
 };
 

@@ -1,331 +1,67 @@
-import { promises as fsPromises } from 'node:fs';
+import { commands, ExtensionContext, window, workspace } from "vscode";
 
-import {
-  commands,
-  ExtensionContext,
-  StatusBarAlignment,
-  StatusBarItem,
-  ThemeColor,
-  Uri,
-  window,
-  workspace,
-} from 'vscode';
+import { OxcCommands } from "./commands";
+import { ConfigService } from "./ConfigService";
+import StatusBarItemHandler from "./StatusBarItemHandler";
+import Linter from "./tools/linter";
 
-import {
-  ConfigurationParams,
-  ExecuteCommandRequest,
-  MessageType,
-  ShowMessageNotification,
-} from 'vscode-languageclient';
-
-import { Executable, LanguageClient, LanguageClientOptions, ServerOptions } from 'vscode-languageclient/node';
-
-import { join } from 'node:path';
-import { ConfigService } from './ConfigService';
-import { VSCodeConfig } from './VSCodeConfig';
-
-const languageClientName = 'oxc';
-const outputChannelName = 'Oxc';
-const commandPrefix = 'oxc';
-
-const enum OxcCommands {
-  RestartServer = `${commandPrefix}.restartServer`,
-  ApplyAllFixesFile = `${commandPrefix}.applyAllFixesFile`,
-  ShowOutputChannel = `${commandPrefix}.showOutputChannel`,
-  ToggleEnable = `${commandPrefix}.toggleEnable`,
-}
-
-const enum LspCommands {
-  FixAll = 'oxc.fixAll',
-}
-
-let client: LanguageClient | undefined;
-
-let myStatusBarItem: StatusBarItem;
-
-// Global flag to check if the user allows us to start the server.
-// When `oxc.requireConfig` is `true`, make sure one `.oxlintrc.json` file is present.
-let allowedToStartServer: boolean;
+const outputChannelName = "Oxc";
+const linter = new Linter();
 
 export async function activate(context: ExtensionContext) {
   const configService = new ConfigService();
-  allowedToStartServer = configService.vsCodeConfig.requireConfig
-    ? (await workspace.findFiles(`**/.oxlintrc.json`, '**/node_modules/**', 1)).length > 0
-    : true;
 
-  const restartCommand = commands.registerCommand(OxcCommands.RestartServer, async () => {
-    if (client === undefined) {
-      window.showErrorMessage('oxc client not found');
-      return;
-    }
-
-    try {
-      if (client.isRunning()) {
-        await client.restart();
-        window.showInformationMessage('oxc server restarted.');
-      } else {
-        await client.start();
-      }
-    } catch (err) {
-      client.error('Restarting client failed', err, 'force');
-    }
+  const outputChannel = window.createOutputChannel(outputChannelName, {
+    log: true,
   });
 
   const showOutputCommand = commands.registerCommand(OxcCommands.ShowOutputChannel, () => {
-    client?.outputChannel?.show();
+    outputChannel.show();
   });
 
-  const toggleEnable = commands.registerCommand(OxcCommands.ToggleEnable, async () => {
-    await configService.vsCodeConfig.updateEnable(!configService.vsCodeConfig.enable);
-
-    if (client === undefined || !allowedToStartServer) {
-      return;
-    }
-
-    if (client.isRunning()) {
-      if (!configService.vsCodeConfig.enable) {
-        await client.stop();
+  const onDidChangeWorkspaceFoldersDispose = workspace.onDidChangeWorkspaceFolders(
+    async (event) => {
+      for (const folder of event.added) {
+        configService.addWorkspaceConfig(folder);
       }
-    } else {
-      if (configService.vsCodeConfig.enable) {
-        await client.start();
+      for (const folder of event.removed) {
+        configService.removeWorkspaceConfig(folder);
       }
-    }
-  });
-
-  const applyAllFixesFile = commands.registerCommand(OxcCommands.ApplyAllFixesFile, async () => {
-    if (!client) {
-      window.showErrorMessage('oxc client not found');
-      return;
-    }
-    const textEditor = window.activeTextEditor;
-    if (!textEditor) {
-      window.showErrorMessage('active text editor not found');
-      return;
-    }
-
-    const params = {
-      command: LspCommands.FixAll,
-      arguments: [
-        {
-          uri: textEditor.document.uri.toString(),
-        },
-      ],
-    };
-
-    await client.sendRequest(ExecuteCommandRequest.type, params);
-  });
-
-  const outputChannel = window.createOutputChannel(outputChannelName, { log: true });
-
-  context.subscriptions.push(
-    applyAllFixesFile,
-    restartCommand,
-    showOutputCommand,
-    toggleEnable,
-    configService,
-    outputChannel,
+    },
   );
 
-  async function findBinary(): Promise<string> {
-    let bin = configService.getUserServerBinPath();
-    if (workspace.isTrusted && bin) {
-      try {
-        await fsPromises.access(bin);
-        return bin;
-      } catch (e) {
-        outputChannel.error(`Invalid bin path: ${bin}`, e);
-      }
-    }
-    const ext = process.platform === 'win32' ? '.exe' : '';
-    // NOTE: The `./target/release` path is aligned with the path defined in .github/workflows/release_vscode.yml
-    return process.env.SERVER_PATH_DEV ?? join(context.extensionPath, `./target/release/oxc_language_server${ext}`);
-  }
+  const statusBarItemHandler = new StatusBarItemHandler(context.extension.packageJSON?.version);
 
-  const command = await findBinary();
-  const run: Executable = {
-    command: command!,
-    options: {
-      env: {
-        ...process.env,
-        RUST_LOG: process.env.RUST_LOG || 'info',
-      },
-    },
-  };
-  const serverOptions: ServerOptions = {
-    run,
-    debug: run,
-  };
-
-  // see https://github.com/oxc-project/oxc/blob/9b475ad05b750f99762d63094174be6f6fc3c0eb/crates/oxc_linter/src/loader/partial_loader/mod.rs#L17-L20
-  const supportedExtensions = ['astro', 'cjs', 'cts', 'js', 'jsx', 'mjs', 'mts', 'svelte', 'ts', 'tsx', 'vue'];
-
-  // If the extension is launched in debug mode then the debug server options are used
-  // Otherwise the run options are used
-  // Options to control the language client
-  let clientOptions: LanguageClientOptions = {
-    // Register the server for plain text documents
-    documentSelector: [
-      {
-        pattern: `**/*.{${supportedExtensions.join(',')}}`,
-        scheme: 'file',
-      },
-    ],
-    initializationOptions: configService.languageServerConfig,
+  context.subscriptions.push(
+    showOutputCommand,
+    configService,
     outputChannel,
-    traceOutputChannel: outputChannel,
-    middleware: {
-      handleDiagnostics: (uri, diagnostics, next) => {
-        for (const diag of diagnostics) {
-          // https://github.com/oxc-project/oxc/issues/12404
-          if (typeof diag.code === 'object' && diag.code?.value === 'eslint-plugin-unicorn(filename-case)') {
-            diag.message += '\nYou may need to close the file and restart VSCode after renaming a file by only casing.';
-          }
-        }
-        next(uri, diagnostics);
-      },
-      workspace: {
-        configuration: (params: ConfigurationParams) => {
-          return params.items.map((item) => {
-            if (item.section !== 'oxc_language_server') {
-              return null;
-            }
-            if (item.scopeUri === undefined) {
-              return null;
-            }
-
-            return configService.getWorkspaceConfig(Uri.parse(item.scopeUri))?.toLanguageServerConfig() ?? null;
-          });
-        },
-      },
-    },
-  };
-
-  // Create the language client and start the client.
-  client = new LanguageClient(languageClientName, serverOptions, clientOptions);
-
-  const onNotificationDispose = client.onNotification(ShowMessageNotification.type, (params) => {
-    switch (params.type) {
-      case MessageType.Debug:
-        outputChannel.debug(params.message);
-        break;
-      case MessageType.Log:
-        outputChannel.info(params.message);
-        break;
-      case MessageType.Info:
-        window.showInformationMessage(params.message);
-        break;
-      case MessageType.Warning:
-        window.showWarningMessage(params.message);
-        break;
-      case MessageType.Error:
-        window.showErrorMessage(params.message);
-        break;
-      default:
-        outputChannel.info(params.message);
-    }
-  });
-
-  context.subscriptions.push(onNotificationDispose);
-
-  const onDeleteFilesDispose = workspace.onDidDeleteFiles((event) => {
-    for (const fileUri of event.files) {
-      client?.diagnostics?.delete(fileUri);
-    }
-  });
-
-  context.subscriptions.push(onDeleteFilesDispose);
-
-  const onDidChangeWorkspaceFoldersDispose = workspace.onDidChangeWorkspaceFolders(async (event) => {
-    for (const folder of event.added) {
-      configService.addWorkspaceConfig(folder);
-    }
-    for (const folder of event.removed) {
-      configService.removeWorkspaceConfig(folder);
-    }
-  });
-
-  context.subscriptions.push(onDidChangeWorkspaceFoldersDispose);
+    onDidChangeWorkspaceFoldersDispose,
+    statusBarItemHandler,
+  );
 
   configService.onConfigChange = async function onConfigChange(event) {
-    updateStatsBar(context, this.vsCodeConfig.enable);
-
-    if (client === undefined) {
-      return;
-    }
-
-    // update the initializationOptions for a possible restart
-    client.clientOptions.initializationOptions = this.languageServerConfig;
-
-    if (configService.effectsWorkspaceConfigChange(event) && client.isRunning()) {
-      await client.sendNotification('workspace/didChangeConfiguration', {
-        settings: this.languageServerConfig,
-      });
-    }
+    await linter.onConfigChange(event, configService, statusBarItemHandler);
   };
+  const binaryPath = await linter.getBinary(context, outputChannel, configService);
 
-  updateStatsBar(context, configService.vsCodeConfig.enable);
-  if (allowedToStartServer) {
-    if (configService.vsCodeConfig.enable) {
-      await client.start();
-    }
-  } else {
-    generateActivatorByConfig(configService.vsCodeConfig, context);
+  // For the linter this should never happen, but just in case.
+  if (!binaryPath) {
+    statusBarItemHandler.setColorAndIcon("statusBarItem.errorBackground", "error");
+    statusBarItemHandler.updateToolTooltip(
+      "linter",
+      "Error: No valid oxc language server binary found.",
+    );
+    statusBarItemHandler.show();
+    outputChannel.error("No valid oxc language server binary found.");
+    return;
   }
+
+  await linter.activate(context, binaryPath, outputChannel, configService, statusBarItemHandler);
+  // Show status bar item after activation
+  statusBarItemHandler.show();
 }
 
 export async function deactivate(): Promise<void> {
-  if (!client) {
-    return undefined;
-  }
-  await client.stop();
-  client = undefined;
-}
-
-function updateStatsBar(context: ExtensionContext, enable: boolean) {
-  if (!myStatusBarItem) {
-    myStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Right, 100);
-    myStatusBarItem.command = OxcCommands.ToggleEnable;
-    context.subscriptions.push(myStatusBarItem);
-    myStatusBarItem.show();
-  }
-  let bgColor: string;
-  let icon: string;
-  if (!allowedToStartServer) {
-    bgColor = 'statusBarItem.offlineBackground';
-    icon = '$(circle-slash)';
-  } else if (!enable) {
-    bgColor = 'statusBarItem.warningBackground';
-    icon = '$(check)';
-  } else {
-    bgColor = 'statusBarItem.activeBackground';
-    icon = '$(check-all)';
-  }
-
-  myStatusBarItem.text = `${icon} oxc`;
-  myStatusBarItem.backgroundColor = new ThemeColor(bgColor);
-}
-
-function generateActivatorByConfig(config: VSCodeConfig, context: ExtensionContext): void {
-  const watcher = workspace.createFileSystemWatcher('**/.oxlintrc.json', false, true, !config.requireConfig);
-  watcher.onDidCreate(async () => {
-    allowedToStartServer = true;
-    updateStatsBar(context, config.enable);
-    if (client && !client.isRunning() && config.enable) {
-      await client.start();
-    }
-  });
-
-  watcher.onDidDelete(async () => {
-    // only can be called when config.requireConfig
-    allowedToStartServer = (await workspace.findFiles(`**/.oxlintrc.json`, '**/node_modules/**', 1)).length > 0;
-    if (!allowedToStartServer) {
-      updateStatsBar(context, false);
-      if (client && client.isRunning()) {
-        await client.stop();
-      }
-    }
-  });
-
-  context.subscriptions.push(watcher);
+  await linter.deactivate();
 }

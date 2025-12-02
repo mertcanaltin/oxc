@@ -7,8 +7,10 @@ use std::{
 
 use rustc_hash::FxHashMap;
 
+use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
+
 use super::{
-    Arguments, Format, FormatElement, FormatResult, FormatState,
+    Arguments, Format, FormatElement, FormatState,
     format_element::Interned,
     prelude::{LineMode, PrintMode, Tag, tag::Condition},
 };
@@ -29,12 +31,12 @@ pub trait Buffer<'ast> {
     /// let mut state = FormatState::new(SimpleFormatContext::default());
     /// let mut buffer = VecBuffer::new(&mut state);
     ///
-    /// buffer.write_element(FormatElement::StaticText { text: "test"}).unwrap();
+    /// buffer.write_element(FormatElement::Token { text: "test"}).unwrap();
     ///
-    /// assert_eq!(buffer.into_vec(), vec![FormatElement::StaticText { text: "test" }]);
+    /// assert_eq!(buffer.into_vec(), vec![FormatElement::Token { text: "test" }]);
     /// ```
     ///
-    fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()>;
+    fn write_element(&mut self, element: FormatElement<'ast>);
 
     /// Returns a slice containing all elements written into this buffer.
     ///
@@ -57,12 +59,12 @@ pub trait Buffer<'ast> {
     /// let mut state = FormatState::new(SimpleFormatContext::default());
     /// let mut buffer = VecBuffer::new(&mut state);
     ///
-    /// buffer.write_fmt(format_args!(text("Hello World"))).unwrap();
+    /// buffer.write_fmt(format_args!(token("Hello World"))).unwrap();
     ///
-    /// assert_eq!(buffer.into_vec(), vec![FormatElement::StaticText{ text: "Hello World" }]);
+    /// assert_eq!(buffer.into_vec(), vec![FormatElement::Token{ text: "Hello World" }]);
     /// ```
-    fn write_fmt(mut self: &mut Self, arguments: Arguments<'_, 'ast>) -> FormatResult<()> {
-        super::write(&mut self, arguments)
+    fn write_fmt(mut self: &mut Self, arguments: Arguments<'_, 'ast>) {
+        super::write(&mut self, arguments);
     }
 
     /// Returns the formatting state relevant for this formatting session.
@@ -140,16 +142,16 @@ impl BufferSnapshot {
 
 /// Implements the `[Buffer]` trait for all mutable references of objects implementing [Buffer].
 impl<'ast, W: Buffer<'ast> + ?Sized> Buffer<'ast> for &mut W {
-    fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()> {
-        (**self).write_element(element)
+    fn write_element(&mut self, element: FormatElement<'ast>) {
+        (**self).write_element(element);
     }
 
     fn elements(&self) -> &[FormatElement<'ast>] {
         (**self).elements()
     }
 
-    fn write_fmt(&mut self, args: Arguments<'_, 'ast>) -> FormatResult<()> {
-        (**self).write_fmt(args)
+    fn write_fmt(&mut self, args: Arguments<'_, 'ast>) {
+        (**self).write_fmt(args);
     }
 
     fn state(&self) -> &FormatState<'ast> {
@@ -175,34 +177,35 @@ impl<'ast, W: Buffer<'ast> + ?Sized> Buffer<'ast> for &mut W {
 #[derive(Debug)]
 pub struct VecBuffer<'buf, 'ast> {
     state: &'buf mut FormatState<'ast>,
-    elements: Vec<FormatElement<'ast>>,
+    elements: ArenaVec<'ast, FormatElement<'ast>>,
 }
 
 impl<'buf, 'ast> VecBuffer<'buf, 'ast> {
     pub fn new(state: &'buf mut FormatState<'ast>) -> Self {
-        Self::new_with_vec(state, Vec::new())
+        Self::new_with_vec(state, ArenaVec::new_in(state.context().allocator()))
     }
 
     pub fn new_with_vec(
         state: &'buf mut FormatState<'ast>,
-        elements: Vec<FormatElement<'ast>>,
+        elements: ArenaVec<'ast, FormatElement<'ast>>,
     ) -> Self {
         Self { state, elements }
     }
 
     /// Creates a buffer with the specified capacity
     pub fn with_capacity(capacity: usize, state: &'buf mut FormatState<'ast>) -> Self {
-        Self { state, elements: Vec::with_capacity(capacity) }
+        let elements = ArenaVec::with_capacity_in(capacity, state.context().allocator());
+        Self { state, elements }
     }
 
     /// Consumes the buffer and returns the written [`FormatElement]`s as a vector.
-    pub fn into_vec(self) -> Vec<FormatElement<'ast>> {
+    pub fn into_vec(self) -> ArenaVec<'ast, FormatElement<'ast>> {
         self.elements
     }
 
     /// Takes the elements without consuming self
-    pub fn take_vec(&mut self) -> Vec<FormatElement<'ast>> {
-        std::mem::take(&mut self.elements)
+    pub fn take_vec(&mut self) -> ArenaVec<'ast, FormatElement<'ast>> {
+        self.elements.take_in(self.state.context().allocator())
     }
 }
 
@@ -221,10 +224,8 @@ impl DerefMut for VecBuffer<'_, '_> {
 }
 
 impl<'ast> Buffer<'ast> for VecBuffer<'_, 'ast> {
-    fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()> {
+    fn write_element(&mut self, element: FormatElement<'ast>) {
         self.elements.push(element);
-
-        Ok(())
     }
 
     fn elements(&self) -> &[FormatElement<'ast>] {
@@ -268,19 +269,19 @@ Make sure that you take and restore the snapshot in order and that this snapshot
 /// struct Preamble;
 ///
 /// impl Format<SimpleFormatContext> for Preamble {
-///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
-///         write!(f, [text("# heading"), hard_line_break()])
+///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>)  {
+///         write!(f, [token("# heading"), hard_line_break()])
 ///     }
 /// }
 ///
-/// # fn main() -> FormatResult<()> {
+/// # fn main()  {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
 /// let mut buffer = VecBuffer::new(&mut state);
 ///
 /// {
 ///     let mut with_preamble = PreambleBuffer::new(&mut buffer, Preamble);
 ///
-///     write!(&mut with_preamble, [text("this text will be on a new line")])?;
+///     write!(&mut with_preamble, [token("this text will be on a new line")])?;
 /// }
 ///
 /// let formatted = Formatted::new(Document::from(buffer.into_vec()), SimpleFormatContext::default());
@@ -299,12 +300,12 @@ Make sure that you take and restore the snapshot in order and that this snapshot
 /// struct Preamble;
 ///
 /// impl Format<SimpleFormatContext> for Preamble {
-///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>) -> FormatResult<()> {
-///         write!(f, [text("# heading"), hard_line_break()])
+///     fn fmt(&self, f: &mut Formatter<SimpleFormatContext>)  {
+///         write!(f, [token("# heading"), hard_line_break()])
 ///     }
 /// }
 ///
-/// # fn main() -> FormatResult<()> {
+/// # fn main()  {
 /// let mut state = FormatState::new(SimpleFormatContext::default());
 /// let mut buffer = VecBuffer::new(&mut state);
 /// {
@@ -328,11 +329,13 @@ pub struct PreambleBuffer<'a, 'buf, Preamble> {
 }
 
 impl<'ast, 'buf, Preamble> PreambleBuffer<'ast, 'buf, Preamble> {
+    #[expect(unused)]
     pub fn new(inner: &'buf mut dyn Buffer<'ast>, preamble: Preamble) -> Self {
         Self { inner, preamble, empty: true }
     }
 
     /// Returns `true` if the preamble has been written, `false` otherwise.
+    #[expect(unused)]
     pub fn did_write_preamble(&self) -> bool {
         !self.empty
     }
@@ -342,13 +345,13 @@ impl<'ast, Preamble> Buffer<'ast> for PreambleBuffer<'ast, '_, Preamble>
 where
     Preamble: Format<'ast>,
 {
-    fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()> {
+    fn write_element(&mut self, element: FormatElement<'ast>) {
         if self.empty {
-            write!(self.inner, [&self.preamble])?;
+            write!(self.inner, [&self.preamble]);
             self.empty = false;
         }
 
-        self.inner.write_element(element)
+        self.inner.write_element(element);
     }
 
     fn elements(&self) -> &[FormatElement<'ast>] {
@@ -399,9 +402,9 @@ impl<'a, Inspector> Buffer<'a> for Inspect<'a, '_, Inspector>
 where
     Inspector: FnMut(&FormatElement),
 {
-    fn write_element(&mut self, element: FormatElement<'a>) -> FormatResult<()> {
+    fn write_element(&mut self, element: FormatElement<'a>) {
         (self.inspector)(&element);
-        self.inner.write_element(element)
+        self.inner.write_element(element);
     }
 
     fn elements(&self) -> &[FormatElement<'a>] {
@@ -436,7 +439,7 @@ where
 /// use biome_formatter::prelude::*;
 /// use biome_formatter::{format, write};
 ///
-/// # fn main() -> FormatResult<()> {
+/// # fn main()  {
 /// use biome_formatter::{RemoveSoftLinesBuffer, SimpleFormatContext, VecBuffer};
 /// use biome_formatter::prelude::format_with;
 /// let formatted = format!(
@@ -447,11 +450,11 @@ where
 ///         write!(
 ///             buffer,
 ///             [
-///                 text("The next soft line or space gets replaced by a space"),
+///                 token("The next soft line or space gets replaced by a space"),
 ///                 soft_line_break_or_space(),
-///                 text("and the line here"),
+///                 token("and the line here"),
 ///                 soft_line_break(),
-///                 text("is removed entirely.")
+///                 token("is removed entirely.")
 ///             ]
 ///         )
 ///     })]
@@ -460,10 +463,10 @@ where
 /// assert_eq!(
 ///     formatted.document().as_ref(),
 ///     &[
-///         FormatElement::StaticText { text: "The next soft line or space gets replaced by a space" },
+///         FormatElement::Token { text: "The next soft line or space gets replaced by a space" },
 ///         FormatElement::Space,
-///         FormatElement::StaticText { text: "and the line here" },
-///         FormatElement::StaticText { text: "is removed entirely." }
+///         FormatElement::Token { text: "and the line here" },
+///         FormatElement::Token { text: "is removed entirely." }
 ///     ]
 /// );
 ///
@@ -493,8 +496,13 @@ impl<'buf, 'ast> RemoveSoftLinesBuffer<'buf, 'ast> {
     }
 
     /// Removes the soft line breaks from an interned element.
-    fn clean_interned(&mut self, interned: &Interned<'ast>) -> Interned<'ast> {
-        clean_interned(interned, &mut self.interned_cache, &mut self.conditional_content_stack)
+    fn clean_interned(&mut self, interned: Interned<'ast>) -> Interned<'ast> {
+        clean_interned(
+            interned,
+            &mut self.interned_cache,
+            &mut self.conditional_content_stack,
+            self.inner.state().context().allocator(),
+        )
     }
 
     /// Marker for whether a `StartConditionalContent(mode: Expanded)` has been
@@ -509,11 +517,12 @@ impl<'buf, 'ast> RemoveSoftLinesBuffer<'buf, 'ast> {
 
 // Extracted to function to avoid monomorphization
 fn clean_interned<'ast>(
-    interned: &Interned<'ast>,
+    interned: Interned<'ast>,
     interned_cache: &mut FxHashMap<Interned<'ast>, Interned<'ast>>,
     condition_content_stack: &mut Vec<Condition>,
+    allocator: &'ast Allocator,
 ) -> Interned<'ast> {
-    if let Some(cleaned) = interned_cache.get(interned) {
+    if let Some(cleaned) = interned_cache.get(&interned) {
         cleaned.clone()
     } else {
         // Find the first soft line break element, interned element, or conditional expanded
@@ -522,18 +531,22 @@ fn clean_interned<'ast>(
             FormatElement::Line(LineMode::Soft | LineMode::SoftOrSpace)
             | FormatElement::Tag(Tag::StartConditionalContent(_) | Tag::EndConditionalContent)
             | FormatElement::BestFitting(_) => {
-                let mut cleaned = Vec::new();
-                cleaned.extend_from_slice(&interned[..index]);
+                let cleaned = ArenaVec::from_iter_in(interned[..index].iter().cloned(), allocator);
                 Some((cleaned, &interned[index..]))
             }
             FormatElement::Interned(inner) => {
-                let cleaned_inner = clean_interned(inner, interned_cache, condition_content_stack);
+                let cleaned_inner = clean_interned(
+                    inner.clone(),
+                    interned_cache,
+                    condition_content_stack,
+                    allocator,
+                );
 
                 if &cleaned_inner == inner {
                     None
                 } else {
-                    let mut cleaned = Vec::with_capacity(interned.len());
-                    cleaned.extend_from_slice(&interned[..index]);
+                    let mut cleaned = ArenaVec::with_capacity_in(interned.len(), allocator);
+                    cleaned.extend(interned[..index].iter().cloned());
                     cleaned.push(FormatElement::Interned(cleaned_inner));
                     Some((cleaned, &interned[index + 1..]))
                 }
@@ -567,9 +580,10 @@ fn clean_interned<'ast>(
 
                         FormatElement::Interned(interned) => {
                             cleaned.push(FormatElement::Interned(clean_interned(
-                                interned,
+                                interned.clone(),
                                 interned_cache,
                                 condition_content_stack,
+                                allocator,
                             )));
                         }
                         // Since this buffer aims to simulate infinite print width, we don't need to retain the best fitting.
@@ -588,15 +602,14 @@ fn clean_interned<'ast>(
             None => interned.clone(),
         };
 
-        interned_cache.insert(interned.clone(), result.clone());
+        interned_cache.insert(interned, result.clone());
         result
     }
 }
 
 impl<'ast> Buffer<'ast> for RemoveSoftLinesBuffer<'_, 'ast> {
-    fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()> {
-        let mut element_stack = Vec::new();
-        element_stack.push(element);
+    fn write_element(&mut self, element: FormatElement<'ast>) {
+        let mut element_stack = Vec::from_iter([element]);
         while let Some(element) = element_stack.pop() {
             match element {
                 FormatElement::Tag(Tag::StartConditionalContent(condition)) => {
@@ -611,22 +624,21 @@ impl<'ast> Buffer<'ast> for RemoveSoftLinesBuffer<'_, 'ast> {
 
                 FormatElement::Line(LineMode::Soft) => {}
                 FormatElement::Line(LineMode::SoftOrSpace) => {
-                    self.inner.write_element(FormatElement::Space)?;
+                    self.inner.write_element(FormatElement::Space);
                 }
                 FormatElement::Interned(interned) => {
-                    let cleaned = self.clean_interned(&interned);
-                    self.inner.write_element(FormatElement::Interned(cleaned))?;
+                    let cleaned = self.clean_interned(interned);
+                    self.inner.write_element(FormatElement::Interned(cleaned));
                 }
                 // Since this buffer aims to simulate infinite print width, we don't need to retain the best fitting.
                 // Just extract the flattest variant and then handle elements within it.
                 FormatElement::BestFitting(best_fitting) => {
                     let most_flat = best_fitting.most_flat();
-                    most_flat.iter().rev().for_each(|element| element_stack.push(element.clone()));
+                    element_stack.extend(most_flat.iter().rev().cloned());
                 }
-                element => self.inner.write_element(element)?,
+                element => self.inner.write_element(element),
             }
         }
-        Ok(())
     }
 
     fn elements(&self) -> &[FormatElement<'ast>] {
@@ -653,6 +665,7 @@ impl<'ast> Buffer<'ast> for RemoveSoftLinesBuffer<'_, 'ast> {
 pub trait BufferExtensions<'ast>: Buffer<'ast> + Sized {
     /// Returns a new buffer that calls the passed inspector for every element that gets written to the output
     #[must_use]
+    #[expect(unused)]
     fn inspect<'inner, F>(&'inner mut self, inspector: F) -> Inspect<'ast, 'inner, F>
     where
         F: FnMut(&FormatElement),
@@ -670,23 +683,23 @@ pub trait BufferExtensions<'ast>: Buffer<'ast> + Sized {
     /// use biome_formatter::prelude::*;
     /// use biome_formatter::{write, format, SimpleFormatContext};
     ///
-    /// # fn main() -> FormatResult<()> {
+    /// # fn main()  {
     /// let formatted = format!(SimpleFormatContext::default(), [format_with(|f| {
     ///     let mut recording = f.start_recording();
     ///
-    ///     write!(recording, [text("A")])?;
-    ///     write!(recording, [text("B")])?;
+    ///     write!(recording, [token("A")])?;
+    ///     write!(recording, [token("B")])?;
     ///
-    ///     write!(recording, [format_with(|f| write!(f, [text("C"), text("D")]))])?;
+    ///     write!(recording, [format_with(|f| write!(f, [token("C"), token("D")]))])?;
     ///
     ///     let recorded = recording.stop();
     ///     assert_eq!(
     ///         recorded.deref(),
     ///         &[
-    ///             FormatElement::StaticText{ text: "A" },
-    ///             FormatElement::StaticText{ text: "B" },
-    ///             FormatElement::StaticText{ text: "C" },
-    ///             FormatElement::StaticText{ text: "D" }
+    ///             FormatElement::Token{ text: "A" },
+    ///             FormatElement::Token{ text: "B" },
+    ///             FormatElement::Token{ text: "C" },
+    ///             FormatElement::Token{ text: "D" }
     ///         ]
     ///     );
     ///
@@ -703,15 +716,13 @@ pub trait BufferExtensions<'ast>: Buffer<'ast> + Sized {
     }
 
     /// Writes a sequence of elements into this buffer.
-    fn write_elements<I>(&mut self, elements: I) -> FormatResult<()>
+    fn write_elements<I>(&mut self, elements: I)
     where
         I: IntoIterator<Item = FormatElement<'ast>>,
     {
         for element in elements {
-            self.write_element(element)?;
+            self.write_element(element);
         }
-
-        Ok(())
     }
 }
 
@@ -732,13 +743,14 @@ where
     }
 
     #[inline(always)]
-    pub fn write_fmt(&mut self, arguments: Arguments<'_, 'ast>) -> FormatResult<()> {
-        self.buffer.write_fmt(arguments)
+    pub fn write_fmt(&mut self, arguments: Arguments<'_, 'ast>) {
+        self.buffer.write_fmt(arguments);
     }
 
     #[inline(always)]
-    pub fn write_element(&mut self, element: FormatElement<'ast>) -> FormatResult<()> {
-        self.buffer.write_element(element)
+    #[expect(unused)]
+    pub fn write_element(&mut self, element: FormatElement<'ast>) {
+        self.buffer.write_element(element);
     }
 
     pub fn stop(self) -> Recorded<'buf, 'ast> {

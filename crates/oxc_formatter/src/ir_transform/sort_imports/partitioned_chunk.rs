@@ -1,29 +1,30 @@
-use crate::formatter::format_element::FormatElement;
-
-use super::{
-    import_unit::{ImportUnits, SortableImport},
+use crate::ir_transform::sort_imports::{
+    compute_metadata::compute_import_metadata,
+    group_config::GroupName,
+    options::SortImportsOptions,
+    sortable_imports::{SortSortableImports, SortableImport},
     source_line::SourceLine,
 };
 
-#[derive(Debug, Clone)]
-pub enum PartitionedChunk {
+#[derive(Debug)]
+pub enum PartitionedChunk<'a> {
     /// A chunk containing import statements,
     /// and possibly leading/trailing comments or empty lines.
-    Imports(Vec<SourceLine>),
+    Imports(Vec<SourceLine<'a>>),
     /// A boundary chunk.
     /// Always contains `SourceLine::Others`,
     /// or optionally `SourceLine::Empty|CommentOnly` depending on partition options.
-    Boundary(SourceLine),
+    Boundary(SourceLine<'a>),
 }
 
-impl Default for PartitionedChunk {
+impl Default for PartitionedChunk<'_> {
     fn default() -> Self {
         Self::Imports(vec![])
     }
 }
 
-impl PartitionedChunk {
-    pub fn add_imports_line(&mut self, line: SourceLine) {
+impl<'a> PartitionedChunk<'a> {
+    pub fn add_imports_line(&mut self, line: SourceLine<'a>) {
         debug_assert!(
             !matches!(line, SourceLine::Others(..)),
             "`line` must not be of type `SourceLine::Others`."
@@ -41,24 +42,36 @@ impl PartitionedChunk {
         matches!(self, Self::Imports(lines) if lines.is_empty())
     }
 
+    /// Convert this import chunk into a list of sortable import units and trailing lines.
+    /// Returns a tuple of `(sortable_imports, trailing_lines)`.
     #[must_use]
-    pub fn into_import_units(self, _elements: &[FormatElement]) -> (ImportUnits, Vec<SourceLine>) {
+    pub fn into_sorted_import_units(
+        self,
+        groups: &[Vec<GroupName>],
+        options: &SortImportsOptions,
+    ) -> (Vec<SortableImport<'a>>, Vec<SourceLine<'a>>) {
         let Self::Imports(lines) = self else {
             unreachable!(
                 "`into_import_units()` must be called on `PartitionedChunk::Imports` only."
             );
         };
 
-        let mut units = vec![];
-
+        let mut sortable_imports = vec![];
         let mut current_leading_lines = vec![];
         for line in lines {
             match line {
-                SourceLine::Import(..) => {
-                    units.push(SortableImport::new(
-                        std::mem::take(&mut current_leading_lines),
-                        line,
-                    ));
+                SourceLine::Import(_, ref metadata) => {
+                    let is_side_effect = metadata.is_side_effect;
+                    let (group_idx, normalized_source, is_ignored) =
+                        compute_import_metadata(metadata, groups, options);
+                    sortable_imports.push(SortableImport {
+                        leading_lines: std::mem::take(&mut current_leading_lines),
+                        import_line: line,
+                        is_side_effect,
+                        group_idx,
+                        normalized_source,
+                        is_ignored,
+                    });
                 }
                 SourceLine::CommentOnly(..) | SourceLine::Empty => {
                     current_leading_lines.push(line);
@@ -74,6 +87,9 @@ impl PartitionedChunk {
         // Any remaining comments/lines are trailing
         let trailing_lines = current_leading_lines;
 
-        (ImportUnits(units), trailing_lines)
+        // Let's sort this chunk!
+        sortable_imports.sort(options);
+
+        (sortable_imports, trailing_lines)
     }
 }

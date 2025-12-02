@@ -1,4 +1,4 @@
-import type { Node, Plugin, Rule } from '../../../dist/index.js';
+import type { Node, Plugin, Rule } from "#oxlint";
 
 const SPAN: Node = {
   start: 0,
@@ -19,7 +19,8 @@ const createOnceRule: Rule = {
       Program(_program) {},
       after() {
         context.report({
-          message: 'after:\n' +
+          message:
+            "after:\n" +
             `text: ${JSON.stringify(context.sourceCode.text)}\n` +
             `getText(): ${JSON.stringify(context.sourceCode.getText())}\n` +
             // @ts-ignore
@@ -33,10 +34,10 @@ const createOnceRule: Rule = {
 
 const plugin: Plugin = {
   meta: {
-    name: 'source-code-plugin',
+    name: "source-code-plugin",
   },
   rules: {
-    'create-once': createOnceRule,
+    "create-once": createOnceRule,
   },
 };
 

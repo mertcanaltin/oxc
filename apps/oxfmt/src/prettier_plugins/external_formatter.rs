@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use napi::{
     Status,
-    bindgen_prelude::FnArgs,
-    threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    bindgen_prelude::{FnArgs, Promise, block_on},
+    threadsafe_function::ThreadsafeFunction,
 };
 use oxc_formatter::EmbeddedFormatterCallback;
 
@@ -13,7 +13,7 @@ pub type JsFormatEmbeddedCb = ThreadsafeFunction<
     // Input arguments
     FnArgs<(String, String)>, // (tag_name, code) as separate arguments
     // Return type (what JS function returns)
-    String,
+    Promise<String>,
     // Arguments (repeated)
     FnArgs<(String, String)>,
     // Error status
@@ -51,41 +51,22 @@ impl ExternalFormatter {
 ///
 /// Uses a channel to capture the result from the JS callback.
 pub fn wrap_format_embedded(cb: JsFormatEmbeddedCb) -> EmbeddedFormatterCallback {
-    let cb = Arc::new(cb);
     Arc::new(move |tag_name: &str, code: &str| {
-        let cb = Arc::clone(&cb);
-
-        // Use a channel to capture the result from the JS callback
-        let (tx, rx) = std::sync::mpsc::channel();
-
-        let tag_name_str = tag_name.to_string();
-        let code_str = code.to_string();
-
-        // Call the JS function with separate arguments
-        let status = cb.call_with_return_value(
-            FnArgs::from((tag_name_str.clone(), code_str)),
-            ThreadsafeFunctionCallMode::Blocking,
-            move |result: Result<String, napi::Error>, _env| {
-                // Send the result through the channel
-                let _ = tx.send(result);
-                Ok(())
-            },
-        );
-
-        if status != napi::Status::Ok {
-            return Err(format!(
-                "Failed to call JS formatter for tag '{tag_name_str}': {status:?}"
-            ));
-        }
-
-        // Wait for the result from the channel
-        match rx.recv() {
-            Ok(Ok(formatted)) => Ok(formatted),
-            Ok(Err(e)) => Err(format!("JS formatter failed for tag '{tag_name_str}': {e}")),
-            Err(_) => {
-                Err(format!("Failed to receive result from JS formatter for tag '{tag_name_str}'"))
+        block_on(async {
+            let status =
+                cb.call_async(FnArgs::from((tag_name.to_string(), code.to_string()))).await;
+            match status {
+                Ok(promise) => match promise.await {
+                    Ok(formatted_code) => Ok(formatted_code),
+                    Err(err) => {
+                        Err(format!("JS formatter promise rejected for tag '{tag_name}': {err}"))
+                    }
+                },
+                Err(err) => Err(format!(
+                    "Failed to call JS formatting callback for tag '{tag_name}': {err}"
+                )),
             }
-        }
+        })
     })
 }
 

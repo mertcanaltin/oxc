@@ -1,5 +1,5 @@
-commit: d2940bdb
+commit: 26058a01
 
 transformer_test262 Summary:
-AST Parsed     : 44651/44651 (100.00%)
-Positive Passed: 44651/44651 (100.00%)
+AST Parsed     : 45257/45257 (100.00%)
+Positive Passed: 45257/45257 (100.00%)

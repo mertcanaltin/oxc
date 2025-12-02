@@ -3,7 +3,10 @@
 use std::{fs, path::Path};
 
 use oxc_allocator::Allocator;
-use oxc_formatter::{FormatOptions, Formatter, SortImports, SortOrder, get_parse_options};
+use oxc_formatter::{
+    FormatOptions, Formatter, SortImportsOptions, SortOrder, default_groups,
+    default_internal_patterns, get_parse_options,
+};
 use oxc_parser::Parser;
 use oxc_span::SourceType;
 use pico_args::Arguments;
@@ -19,13 +22,17 @@ fn main() -> Result<(), String> {
     let sort_side_effects = args.contains("--sort_side_effects");
     let order = args.opt_value_from_str("--order").unwrap_or(None).unwrap_or(SortOrder::Asc);
     let ignore_case = !args.contains("--no_ignore_case");
+    let newlines_between = !args.contains("--no_newlines_between");
 
-    let sort_imports_options = SortImports {
+    let sort_imports_options = SortImportsOptions {
         order,
         partition_by_newline,
         partition_by_comment,
         sort_side_effects,
         ignore_case,
+        newlines_between,
+        internal_pattern: default_internal_patterns(),
+        groups: default_groups(),
     };
 
     // Read source file
@@ -48,7 +55,7 @@ fn main() -> Result<(), String> {
 
     // Format the parsed code
     let options = FormatOptions {
-        experimental_sort_imports: Some(sort_imports_options),
+        experimental_sort_imports: Some(sort_imports_options.clone()),
         ..Default::default()
     };
 

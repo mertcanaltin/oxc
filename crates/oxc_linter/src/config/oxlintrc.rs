@@ -4,7 +4,7 @@ use std::{
 };
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use schemars::JsonSchema;
+use schemars::{JsonSchema, schema_for};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use oxc_diagnostics::OxcDiagnostic;
@@ -198,10 +198,64 @@ impl Oxlintrc {
         })
     }
 
+    /// Generates the JSON schema for Oxlintrc configuration files.
+    ///
+    /// # Panics
+    /// Panics if the schema generation fails.
+    pub fn generate_schema_json() -> String {
+        let mut schema = schema_for!(Oxlintrc);
+
+        // Allow comments and trailing commas for vscode-json-languageservice
+        // NOTE: This is NOT part of standard JSON Schema specification
+        // https://github.com/microsoft/vscode-json-languageservice/blob/fb83547762901f32d8449d57e24666573016b10c/src/jsonLanguageTypes.ts#L151-L159
+        schema.schema.extensions.insert("allowComments".to_string(), serde_json::Value::Bool(true));
+        schema
+            .schema
+            .extensions
+            .insert("allowTrailingCommas".to_string(), serde_json::Value::Bool(true));
+
+        // Inject markdownDescription fields for better editor support (e.g., VS Code)
+        let mut json = serde_json::to_value(&schema).unwrap();
+        Self::inject_markdown_descriptions(&mut json);
+
+        serde_json::to_string_pretty(&json).unwrap()
+    }
+
+    /// Recursively inject `markdownDescription` fields into the JSON schema.
+    /// This is a non-standard field that some editors (like VS Code) use to render
+    /// markdown in hover tooltips.
+    fn inject_markdown_descriptions(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Object(map) => {
+                // If this object has a `description` field, copy it to `markdownDescription`
+                if let Some(serde_json::Value::String(desc_str)) = map.get("description") {
+                    map.insert(
+                        "markdownDescription".to_string(),
+                        serde_json::Value::String(desc_str.clone()),
+                    );
+                }
+
+                // Recursively process all values in the object
+                for value in map.values_mut() {
+                    Self::inject_markdown_descriptions(value);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                // Recursively process all items in the array
+                for item in items {
+                    Self::inject_markdown_descriptions(item);
+                }
+            }
+            _ => {
+                // Primitive values don't need processing
+            }
+        }
+    }
+
     /// Merges two [Oxlintrc] files together
     /// [Self] takes priority over `other`
     #[must_use]
-    pub fn merge(&self, other: Oxlintrc) -> Oxlintrc {
+    pub fn merge(&self, other: &Oxlintrc) -> Oxlintrc {
         let mut categories = other.categories.clone();
         categories.extend(self.categories.iter());
 
@@ -225,8 +279,8 @@ impl Oxlintrc {
         let env = self.env.clone();
         let globals = self.globals.clone();
 
-        let mut overrides = self.overrides.clone();
-        overrides.extend(other.overrides);
+        let mut overrides = other.overrides.clone();
+        overrides.extend(self.overrides.clone());
 
         let plugins = match (self.plugins, other.plugins) {
             (Some(self_plugins), Some(other_plugins)) => Some(self_plugins | other_plugins),
