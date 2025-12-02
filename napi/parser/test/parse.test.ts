@@ -718,9 +718,9 @@ describe("parse", () => {
     });
   });
 
-  describe('loc', () => {
-    it('should include loc when true', () => {
-      const ret = parseSync('test.js', 'let x = 1;', { loc: true });
+  describe("loc", () => {
+    it("should include loc when true", () => {
+      const ret = parseSync("test.js", "let x = 1;", { loc: true });
       expect(ret.program.body[0].start).toBe(0);
       expect(ret.program.body[0].end).toBe(10);
       expect(ret.program.body[0].loc).toEqual({
@@ -729,21 +729,21 @@ describe("parse", () => {
       });
     });
 
-    it('should not include loc when false', () => {
-      const ret = parseSync('test.js', 'let x = 1;', { loc: false });
+    it("should not include loc when false", () => {
+      const ret = parseSync("test.js", "let x = 1;", { loc: false });
       expect(ret.program.body[0].loc).toBeUndefined();
     });
 
-    it('should not include loc by default', () => {
-      const ret = parseSync('test.js', 'let x = 1;');
+    it("should not include loc by default", () => {
+      const ret = parseSync("test.js", "let x = 1;");
       expect(ret.program.body[0].loc).toBeUndefined();
     });
 
-    it('should handle multiline code correctly', () => {
+    it("should handle multiline code correctly", () => {
       const code = `let x = 1;
 let y = 2;
 let z = 3;`;
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       // First declaration: let x = 1;
       expect(ret.program.body[0].loc).toEqual({
@@ -764,9 +764,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle nested nodes correctly', () => {
-      const code = 'function foo() {\n  return 42;\n}';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle nested nodes correctly", () => {
+      const code = "function foo() {\n  return 42;\n}";
+      const ret = parseSync("test.js", code, { loc: true });
 
       const functionDecl = ret.program.body[0];
       expect(functionDecl.loc).toEqual({
@@ -781,8 +781,8 @@ let z = 3;`;
       });
     });
 
-    it('should work with both range and loc options', () => {
-      const ret = parseSync('test.js', 'let x = 1;', { range: true, loc: true });
+    it("should work with both range and loc options", () => {
+      const ret = parseSync("test.js", "let x = 1;", { range: true, loc: true });
 
       expect(ret.program.body[0].range).toEqual([0, 10]);
       expect(ret.program.body[0].loc).toEqual({
@@ -791,9 +791,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle Unicode characters correctly', () => {
+    it("should handle Unicode characters correctly", () => {
       const code = 'let 🤨 = "hello";';
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       expect(ret.program.body[0].loc).toEqual({
         start: { line: 1, column: 0 },
@@ -801,10 +801,10 @@ let z = 3;`;
       });
     });
 
-    it('should handle different line endings', () => {
+    it("should handle different line endings", () => {
       // Test with \r\n line endings
-      const codeWindows = 'let x = 1;\r\nlet y = 2;';
-      const retWindows = parseSync('test.js', codeWindows, { loc: true });
+      const codeWindows = "let x = 1;\r\nlet y = 2;";
+      const retWindows = parseSync("test.js", codeWindows, { loc: true });
 
       expect(retWindows.program.body[0].loc).toEqual({
         start: { line: 1, column: 0 },
@@ -816,8 +816,8 @@ let z = 3;`;
       });
 
       // Test with \r line endings (old Mac)
-      const codeMac = 'let x = 1;\rlet y = 2;';
-      const retMac = parseSync('test.js', codeMac, { loc: true });
+      const codeMac = "let x = 1;\rlet y = 2;";
+      const retMac = parseSync("test.js", codeMac, { loc: true });
 
       expect(retMac.program.body[0].loc).toEqual({
         start: { line: 1, column: 0 },
@@ -829,9 +829,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle expressions and identifiers correctly', () => {
-      const code = 'const result = foo + bar;';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle expressions and identifiers correctly", () => {
+      const code = "const result = foo + bar;";
+      const ret = parseSync("test.js", code, { loc: true });
 
       const varDecl = ret.program.body[0];
       const declarator = varDecl.declarations[0];
@@ -861,9 +861,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle empty lines correctly', () => {
-      const code = 'let x = 1;\n\nlet y = 2;';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle empty lines correctly", () => {
+      const code = "let x = 1;\n\nlet y = 2;";
+      const ret = parseSync("test.js", code, { loc: true });
 
       expect(ret.program.body[0].loc).toEqual({
         start: { line: 1, column: 0 },
@@ -877,9 +877,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle comments with loc', () => {
-      const code = '/* comment */ let x = 1;';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle comments with loc", () => {
+      const code = "/* comment */ let x = 1;";
+      const ret = parseSync("test.js", code, { loc: true });
 
       // Variable declaration should start after the comment
       expect(ret.program.body[0].loc).toEqual({
@@ -894,9 +894,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle TypeScript specific nodes with loc', () => {
-      const code = 'interface User {\n  name: string;\n  age: number;\n}';
-      const ret = parseSync('test.ts', code, { loc: true });
+    it("should handle TypeScript specific nodes with loc", () => {
+      const code = "interface User {\n  name: string;\n  age: number;\n}";
+      const ret = parseSync("test.ts", code, { loc: true });
 
       const interfaceDecl = ret.program.body[0];
       expect(interfaceDecl.loc).toEqual({
@@ -905,9 +905,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle complex expressions with correct column positions', () => {
+    it("should handle complex expressions with correct column positions", () => {
       const code = 'const obj = { foo: bar.baz().qux, hello: "world" };';
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       const varDecl = ret.program.body[0];
       const declarator = varDecl.declarations[0];
@@ -925,9 +925,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle string literals with escapes', () => {
+    it("should handle string literals with escapes", () => {
       const code = 'const str = "hello\\nworld";';
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       const varDecl = ret.program.body[0];
       const declarator = varDecl.declarations[0];
@@ -939,9 +939,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle template literals across multiple lines', () => {
-      const code = 'const template = `line1\nline2\nline3`;';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle template literals across multiple lines", () => {
+      const code = "const template = `line1\nline2\nline3`;";
+      const ret = parseSync("test.js", code, { loc: true });
 
       const varDecl = ret.program.body[0];
       const declarator = varDecl.declarations[0];
@@ -953,9 +953,9 @@ let z = 3;`;
       });
     });
 
-    it('should handle zero-length nodes correctly', () => {
-      const code = 'for (;;) {}';
-      const ret = parseSync('test.js', code, { loc: true });
+    it("should handle zero-length nodes correctly", () => {
+      const code = "for (;;) {}";
+      const ret = parseSync("test.js", code, { loc: true });
 
       const forStmt = ret.program.body[0];
       expect(forStmt.loc).toEqual({
@@ -964,12 +964,12 @@ let z = 3;`;
       });
     });
 
-    it('should handle arrow functions with different syntaxes', () => {
+    it("should handle arrow functions with different syntaxes", () => {
       const code = `const fn1 = () => 42;
 const fn2 = (x) => {
   return x * 2;
 };`;
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       // First arrow function (single expression)
       const firstDecl = ret.program.body[0];
@@ -986,9 +986,9 @@ const fn2 = (x) => {
       });
     });
 
-    it('should handle async functions correctly', () => {
+    it("should handle async functions correctly", () => {
       const code = 'async function fetchData() {\n  return await fetch("/api");\n}';
-      const ret = parseSync('test.js', code, { loc: true });
+      const ret = parseSync("test.js", code, { loc: true });
 
       const asyncFn = ret.program.body[0];
       expect(asyncFn.loc).toEqual({
@@ -1004,9 +1004,9 @@ const fn2 = (x) => {
       });
     });
 
-    it('should work with parseAsync as well', async () => {
-      const code = 'let x = 1;\nlet y = 2;';
-      const ret = await parse('test.js', code, { loc: true });
+    it("should work with parseAsync as well", async () => {
+      const code = "let x = 1;\nlet y = 2;";
+      const ret = await parse("test.js", code, { loc: true });
 
       expect(ret.program.body[0].loc).toEqual({
         start: { line: 1, column: 0 },
