@@ -4463,6 +4463,8 @@ function deserializeCommentKind(pos) {
       return "Line";
     case 1:
       return "Block";
+    case 2:
+      return "Block";
     default:
       throw Error(`Unexpected discriminant ${uint8[pos]} for CommentKind`);
   }
@@ -4532,11 +4534,11 @@ function deserializeExportEntry(pos) {
   let start = deserializeU32(pos),
     end = deserializeU32(pos + 4);
   return {
+    moduleRequest: deserializeOptionNameSpan(pos + 16),
     importName: deserializeExportImportName(pos + 40),
     exportName: deserializeExportExportName(pos + 72),
     localName: deserializeExportLocalName(pos + 104),
     isType: deserializeBool(pos + 136),
-    moduleRequest: deserializeOptionNameSpan(pos + 16),
     start,
     end,
   };

@@ -136,6 +136,11 @@ const NOT_SUPPORTED_RULE_NAMES = new Set([
   "import/imports-first", // replaced by import/first, which we support
   "react/jsx-sort-default-props", // replaced by react/sort-default-props
   "vitest/no-done-callback", // [deprecated in eslint-plugin-vitest](https://github.com/vitest-dev/eslint-plugin-vitest/issues/158)
+  "eslint/no-return-await", // deprecated, not recommended anymore by ESLint
+  "eslint/prefer-reflect", // deprecated, not recommended anymore by ESLint
+  "jsx-a11y/accessible-emoji", // deprecated
+  "jsx-a11y/label-has-for", // deprecated, replaced by jsx-a11y/label-has-associated-control
+  "jsx-a11y/no-onchange", // deprecated, based on behavior of very old browsers, and so no longer necessary
 
   // ESLint rules that are deprecated in ESLint and replaced by rules in eslint-plugin-n:
   "eslint/no-process-env", // replaced by node/no-process-env, which we already support
@@ -148,6 +153,7 @@ const NOT_SUPPORTED_RULE_NAMES = new Set([
   "eslint/no-mixed-requires", // replaced by node/no-mixed-requires
   "eslint/global-require", // replaced by node/global-require
   "eslint/handle-callback-err", // replaced by node/handle-callback-err
+  "eslint/callback-return", // replaced by node/callback-return
 
   // Stylistic rules from eslint-plugin-react:
   "react/jsx-equals-spacing",
@@ -159,6 +165,11 @@ const NOT_SUPPORTED_RULE_NAMES = new Set([
   "react/jsx-props-no-multi-spaces",
   "react/jsx-tag-spacing",
   "react/jsx-space-before-closing",
+
+  // Deprecated typescript-eslint rules:
+  "typescript/sort-type-constituents", // replaced by `perfectionist/sort-intersection-types` and `perfectionist/sort-union-types` rules.
+  "typescript/no-type-alias", // replaced by `typescript-eslint/consistent-type-definitions` rule.
+  "typescript/typedef", // just generally deprecated
 
   // The following ESLint rules are deprecated in the main package, and are all stylistic:
   "eslint/array-bracket-newline",
@@ -237,12 +248,6 @@ const NOT_SUPPORTED_RULE_NAMES = new Set([
   "eslint/yield-star-spacing",
 
   "unicorn/no-named-default", // implemented via import/no-named-default
-
-  "regexp/no-invalid-regexp", // handled by eslint/no-invalid-regexp
-  "regexp/no-useless-escape", // handled by eslint/no-useless-escape
-  "regexp/no-useless-backreference", // handled by eslint/no-useless-backreference
-  "regexp/no-useless-character-class", // handled by eslint/no-useless-character-class`
-  "regexp/no-empty-character-class", // handled by eslint/no-empty-character-class
 
   // not supported as it requires parsing the vue template
   "vue/no-lone-template",
@@ -409,6 +414,7 @@ const NOT_SUPPORTED_RULE_NAMES = new Set([
   "vue/no-v-for-template-key-on-child",
   "vue/no-v-model-argument",
   "vue/valid-v-bind-sync",
+  "vue/valid-model-definition", // deprecated
 ]);
 
 /**

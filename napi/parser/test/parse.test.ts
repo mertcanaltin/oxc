@@ -1086,7 +1086,10 @@ describe("UTF-16 span", () => {
                 },
                 "isType": false,
                 "localName": {
+                  "end": null,
                   "kind": "None",
+                  "name": null,
+                  "start": null,
                 },
                 "moduleRequest": {
                   "end": 22,
@@ -1107,6 +1110,7 @@ describe("UTF-16 span", () => {
                 "importName": {
                   "end": 13,
                   "kind": "Default",
+                  "name": null,
                   "start": 12,
                 },
                 "isType": false,
@@ -1147,6 +1151,7 @@ describe("UTF-16 span", () => {
           "labels": [
             {
               "end": 9,
+              "message": null,
               "start": 9,
             },
           ],
@@ -1169,8 +1174,9 @@ describe("error", () => {
       helpMessage: "Try inserting a semicolon here",
       labels: [
         {
-          end: 4,
+          message: null,
           start: 4,
+          end: 4,
         },
       ],
       message: "Expected a semicolon or an implicit semicolon after a statement, but found none",

@@ -1433,4 +1433,27 @@ mod test {
         let args = &["--type-aware"];
         Tester::new().with_cwd("fixtures/tsgolint_rule_options".into()).test_and_snapshot(args);
     }
+
+    #[test]
+    #[cfg(all(not(target_os = "windows"), not(target_endian = "big")))]
+    fn test_tsgolint_fix() {
+        Tester::test_fix_with_args(
+            "fixtures/tsgolint_fix/fix.ts",
+            "// This file has a fixable tsgolint error: no-unnecessary-type-assertion
+// The type assertion `as string` is unnecessary because str is already a string
+const str: string = 'hello';
+const redundant = str as string;
+
+export { redundant };
+",
+            "// This file has a fixable tsgolint error: no-unnecessary-type-assertion
+// The type assertion `as string` is unnecessary because str is already a string
+const str: string = 'hello';
+const redundant = str;
+
+export { redundant };
+",
+            &["--type-aware", "-D", "no-unnecessary-type-assertion"],
+        );
+    }
 }

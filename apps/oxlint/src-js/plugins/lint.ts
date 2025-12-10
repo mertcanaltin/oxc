@@ -6,6 +6,8 @@ import { setSettingsForFile, resetSettings } from "./settings.ts";
 import { ast, initAst, resetSourceAndAst, setupSourceForFile } from "./source_code.ts";
 import { typeAssertIs, debugAssert, debugAssertIsNonNull } from "../utils/asserts.ts";
 import { getErrorMessage } from "../utils/utils.ts";
+import { setGlobalsForFile, resetGlobals } from "./globals.ts";
+
 import {
   addVisitorToCompiled,
   compiledVisitor,
@@ -22,8 +24,6 @@ import { walkProgram } from '../generated/walk.js';
 // @ts-expect-error we need to generate `.d.ts` file for this module
 import { walkProgram } from "../generated/walk.js";
 
-import type { SetOptional } from "type-fest";
-import type { DiagnosticReport } from "../plugins/report.ts";
 import type { AfterHook, BufferWithArrays } from "./types.ts";
 
 // Buffers cache.
@@ -50,6 +50,7 @@ const PARSER_SERVICES_DEFAULT: Record<string, unknown> = Object.freeze({});
  * @param ruleIds - IDs of rules to run on this file
  * @param optionsIds - IDs of options to use for rules on this file, in same order as `ruleIds`
  * @param settingsJSON - Settings for this file, as JSON string
+ * @param globalsJSON - Globals for this file, as JSON string
  * @returns Diagnostics or error serialized to JSON string
  */
 export function lintFile(
@@ -59,15 +60,16 @@ export function lintFile(
   ruleIds: number[],
   optionsIds: number[],
   settingsJSON: string,
-): string {
+  globalsJSON: string,
+): string | null {
   try {
-    lintFileImpl(filePath, bufferId, buffer, ruleIds, optionsIds, settingsJSON);
+    lintFileImpl(filePath, bufferId, buffer, ruleIds, optionsIds, settingsJSON, globalsJSON);
 
-    // Remove `messageId` field from diagnostics. It's not needed on Rust side.
-    for (let i = 0, len = diagnostics.length; i < len; i++) {
-      (diagnostics[i] as SetOptional<DiagnosticReport, "messageId">).messageId = undefined;
-    }
+    // Avoid JSON serialization in common case that there are no diagnostics to report
+    if (diagnostics.length === 0) return null;
 
+    // Note: `messageId` field of `DiagnosticReport` is not needed on Rust side, but we assume it's cheaper to leave it
+    // in place and let `serde` skip over it on Rust side, than to iterate over all diagnostics and remove it here.
     return JSON.stringify({ Success: diagnostics });
   } catch (err) {
     return JSON.stringify({ Failure: getErrorMessage(err) });
@@ -86,6 +88,7 @@ export function lintFile(
  * @param ruleIds - IDs of rules to run on this file
  * @param optionsIds - IDs of options to use for rules on this file, in same order as `ruleIds`
  * @param settingsJSON - Settings for this file, as JSON string
+ * @param globalsJSON - Globals for this file, as JSON string
  * @throws {Error} If any parameters are invalid
  * @throws {*} If any rule throws
  */
@@ -96,6 +99,7 @@ export function lintFileImpl(
   ruleIds: number[],
   optionsIds: number[],
   settingsJSON: string,
+  globalsJSON: string,
 ) {
   // If new buffer, add it to `buffers` array. Otherwise, get existing buffer from array.
   // Do this before checks below, to make sure buffer doesn't get garbage collected when not expected
@@ -141,8 +145,9 @@ export function lintFileImpl(
   const parserServices = PARSER_SERVICES_DEFAULT; // TODO: Set this correctly
   setupSourceForFile(buffer, hasBOM, parserServices);
 
-  // Pass settings JSON to context module
+  // Pass settings and globals JSON to modules that handle them
   setSettingsForFile(settingsJSON);
+  setGlobalsForFile(globalsJSON);
 
   // Get visitors for this file from all rules
   initCompiledVisitor();
@@ -235,4 +240,5 @@ export function resetFile() {
   resetFileContext();
   resetSourceAndAst();
   resetSettings();
+  resetGlobals();
 }

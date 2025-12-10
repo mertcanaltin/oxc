@@ -211,18 +211,7 @@ async function runTsCase(
 
       expect(oxcJson).toEqual(standardJson);
 
-      // Move `message` field to last in `ErrorLabel`s to match NAPI-RS, which puts optional fields last
-      for (const error of errors) {
-        for (const label of error.labels) {
-          if (hasOwn(label, "message")) {
-            const { message } = label;
-            delete label.message;
-            label.message = message;
-          }
-        }
-      }
-
-      const errorsRawJson = JSON.stringify(removeNullProperties(errors), null, 2);
+      const errorsRawJson = JSON.stringify(errors, null, 2);
       const errorsStandardJson = JSON.stringify(errorsStandard, null, 2);
       expect(errorsRawJson).toEqual(errorsStandardJson);
     }
@@ -361,10 +350,12 @@ function assertRawAndStandardMatch(
   const retRaw = parseSync(filename, sourceText, {
     experimentalRawTransfer: true,
   });
-  const { program: programRaw, comments: commentsRaw } = retRaw;
-  // Remove `null` values, to match what NAPI-RS does
-  const moduleRaw = removeNullProperties(retRaw.module);
-  const errorsRaw = removeNullProperties(retRaw.errors);
+  const {
+    program: programRaw,
+    comments: commentsRaw,
+    module: moduleRaw,
+    errors: errorsRaw,
+  } = retRaw;
 
   // Compare as JSON (to ensure same field order)
   const jsonStandard = stringify(
@@ -427,7 +418,7 @@ function stringify(obj: any, pretty: boolean): string {
 }
 
 // Stringify to JSON, removing values which are invalid in JSON,
-// matching `acorn-test262` fixtures.
+// matching `estree-conformance` fixtures.
 const INFINITY_PLACEHOLDER = "__INFINITY__INFINITY__INFINITY__";
 const INFINITY_REGEXP = new RegExp(`"${INFINITY_PLACEHOLDER}"`, "g");
 
@@ -448,11 +439,6 @@ function stringifyAcornTest262Style(obj: any): string {
   );
 
   return containsInfinity ? json.replace(INFINITY_REGEXP, "1e+400") : json;
-}
-
-// Remove `null` values, to match what NAPI-RS does
-function removeNullProperties(obj: any): any {
-  return JSON.parse(JSON.stringify(obj, (_key, value) => (value === null ? undefined : value)));
 }
 
 // Type for expect function

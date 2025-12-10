@@ -363,6 +363,7 @@ mod test {
 
     use rustc_hash::FxHashMap;
     use serde_json::Value;
+    use smallvec::smallvec;
 
     use super::{ConfigStore, ExternalRuleId, ResolvedOxlintOverrides};
     use crate::{
@@ -672,7 +673,7 @@ mod test {
             files: GlobSet::new(vec!["*.tsx"]),
             env: None,
             plugins: None,
-            globals: Some(from_json!({ "React": "readonly", "Secret": "writeable" })),
+            globals: Some(from_json!({ "React": "readonly", "Secret": "writable" })),
             rules: ResolvedOxlintOverrideRules { builtin_rules: vec![], external_rules: vec![] },
         }]);
 
@@ -738,7 +739,7 @@ mod test {
             plugins: LintPlugins::ESLINT,
             globals: from_json!({
                 "React": "readonly",
-                "Secret": "writeable"
+                "Secret": "writable"
             }),
             ..Default::default()
         };
@@ -1077,7 +1078,7 @@ mod test {
         // Base config has external rule with options A, severity warn
         let base_external_rule_id = store.lookup_rule_id("custom", "my-rule").unwrap();
         let base_options_id =
-            store.add_options(ExternalRuleId::DUMMY, vec![serde_json::json!({ "opt": "A" })]);
+            store.add_options(ExternalRuleId::DUMMY, &smallvec![serde_json::json!({ "opt": "A" })]);
 
         let base = Config::new(
             vec![],
@@ -1096,7 +1097,7 @@ mod test {
                         base_external_rule_id,
                         store.add_options(
                             ExternalRuleId::DUMMY,
-                            vec![serde_json::json!({ "opt": "B" })],
+                            &smallvec![serde_json::json!({ "opt": "B" })],
                         ),
                         AllowWarnDeny::Deny,
                     )],
